@@ -28,7 +28,7 @@
     "@aep/monitor": "workspace:*",
     "@aep/resolver": "workspace:*",
     "@aep/sdk": "workspace:*",
-    "commander": "^12.1.0",
+    "commander": "^14.0.3",
     "viem": "^2.21.0"
   },
   "devDependencies": {
