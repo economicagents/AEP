@@ -1,0 +1,40 @@
+# AEP — Agent Economic Protocol
+
+> AEP is the runtime layer for economic agent commerce. It turns autonomous agents from blind spenders into rational economic actors by embedding budget governance, counterparty rules, and persistent economic relationships into on-chain infrastructure. Builds on ERC-4337, ERC-8004, x402.
+
+## Services
+
+- [Smart Accounts](https://economicagents.org/docs/getting-started/overview): Budget caps, counterparty allow/block lists, rate limits enforced at the contract layer
+- [Intent Resolution](https://economicagents.org/docs/reference/intent-schema): Describe what your agent needs; AEP finds the best-priced, highest-reputation provider
+- [Economic Relationships](https://economicagents.org/docs/guides/monetization): Credit lines, escrow, revenue splitting, SLAs — all onchain
+- [TypeScript SDK & CLI](https://economicagents.org/docs/sdk/installation): 15+ MCP tools, REST API. Live on Base (Base Sepolia testnet, Base mainnet)
+
+## What We Do Not Do
+
+- We do not provide custodial wallets or hold user funds
+- We do not operate a centralized API for production; users run their own bundler and RPC
+- We do not support chains other than Base (Base Sepolia testnet, Base mainnet) in production
+
+## Contact
+
+- GitHub: https://github.com/economicagents/aep
+- Issues and discussions: https://github.com/economicagents/aep/issues
+- Security: https://github.com/economicagents/aep/security/advisories/new
+
+## Key Information
+
+- [Homepage](https://economicagents.org)
+- [Documentation](https://economicagents.org/docs)
+- [Getting Started](https://economicagents.org/docs/getting-started/overview)
+- [Quick Start](https://economicagents.org/docs/getting-started/quickstart)
+- [CLI](https://economicagents.org/docs/cli/installation)
+- [SDK](https://economicagents.org/docs/sdk/installation)
+- [MCP Tools](https://economicagents.org/docs/reference/mcp)
+- [Architecture](https://economicagents.org/docs/reference/architecture)
+- [Threat Model](https://economicagents.org/docs/reference/threat-model)
+- [GitHub](https://github.com/economicagents/aep)
+
+## AI Discovery Files
+
+- [AI Interaction Guidance](https://economicagents.org/ai.txt): Permissions and restrictions for AI systems
+- [Sitemap](https://economicagents.org/sitemap.xml): Site structure

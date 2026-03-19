@@ -1,0 +1,38 @@
+{
+  "name": "aep-cli",
+  "version": "0.1.0",
+  "description": "CLI for AEP (Agent Economic Protocol)",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/economicagents/aep.git"
+  },
+  "bugs": "https://github.com/economicagents/aep/issues",
+  "homepage": "https://github.com/economicagents/aep#readme",
+  "keywords": ["aep", "agent", "erc-4337", "cli", "x402", "ethereum"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "bin": {
+    "aep": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "echo 'No tests'"
+  },
+  "dependencies": {
+    "@aep/indexer": "file:../indexer",
+    "@aep/keystore": "file:../keystore",
+    "@aep/monitor": "file:../monitor",
+    "@aep/resolver": "file:../resolver",
+    "@aep/sdk": "file:../sdk",
+    "commander": "^12.1.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

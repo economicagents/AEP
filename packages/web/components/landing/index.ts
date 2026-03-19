@@ -1,0 +1,10 @@
+export { HeroSection } from "./HeroSection";
+export { ProblemSection } from "./ProblemSection";
+export { CapabilitiesSection } from "./CapabilitiesSection";
+export { HowItWorksSection } from "./HowItWorksSection";
+export { ForDevelopersSection } from "./ForDevelopersSection";
+export { NotARoadmapSection } from "./NotARoadmapSection";
+export { PersonasSection } from "./PersonasSection";
+export { StandardsSection } from "./StandardsSection";
+export { GetStartedSection } from "./GetStartedSection";
+export { LandingFooter } from "./LandingFooter";

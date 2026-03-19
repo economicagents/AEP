@@ -1,0 +1,43 @@
+{
+  "name": "@aep/mcp",
+  "version": "0.1.0",
+  "description": "MCP server for AEP budget management and intent resolution",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/economicagents/aep.git"
+  },
+  "bugs": "https://github.com/economicagents/aep/issues",
+  "homepage": "https://github.com/economicagents/aep#readme",
+  "keywords": ["aep", "agent", "mcp", "model-context-protocol"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "aep-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "echo 'No tests'"
+  },
+  "dependencies": {
+    "@aep/graph": "file:../graph",
+    "@aep/keystore": "file:../keystore",
+    "@aep/indexer": "file:../indexer",
+    "@aep/resolver": "file:../resolver",
+    "@aep/sdk": "file:../sdk",
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

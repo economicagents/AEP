@@ -1,0 +1,43 @@
+{
+  "name": "@aep/graph",
+  "version": "0.1.0",
+  "description": "Economic graph for AEP - transaction graph, payments, credit events, credit scoring, recommendations",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/economicagents/aep.git"
+  },
+  "bugs": "https://github.com/economicagents/aep/issues",
+  "homepage": "https://github.com/economicagents/aep#readme",
+  "keywords": ["aep", "agent", "graph", "analytics", "credit-score"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "aep-graph": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "sync": "node dist/cli.js sync",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "sql.js": "^1.14.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

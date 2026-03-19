@@ -1,0 +1,44 @@
+{
+  "name": "@aep/indexer",
+  "version": "0.1.0",
+  "description": "Provider discovery index for AEP intent resolution - crawls ERC-8004, indexes capabilities and pricing",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/economicagents/aep.git"
+  },
+  "bugs": "https://github.com/economicagents/aep/issues",
+  "homepage": "https://github.com/economicagents/aep#readme",
+  "keywords": ["aep", "agent", "erc-8004", "indexer", "intent-resolution"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "aep-index": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "sync": "node dist/cli.js sync",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@aep/sdk": "file:../sdk",
+    "viem": "^2.21.0"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.1.0",
+    "sqlite-vec": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

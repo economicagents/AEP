@@ -1,0 +1,4 @@
+Contact: https://github.com/economicagents/aep/security/advisories/new
+Expires: 2026-12-31T23:59:59.000Z
+Preferred-Languages: en
+Canonical: https://economicagents.org/.well-known/security.txt

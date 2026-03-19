@@ -1,0 +1,41 @@
+{
+  "name": "@aep/monitor",
+  "version": "0.1.0",
+  "description": "On-chain event monitoring for AEP security alerts",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/economicagents/aep.git"
+  },
+  "bugs": "https://github.com/economicagents/aep/issues",
+  "homepage": "https://github.com/economicagents/aep#readme",
+  "keywords": ["aep", "agent", "monitoring", "security", "alerts"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "aep-monitor": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aep/sdk": "file:../sdk",
+    "viem": "^2.21.0"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

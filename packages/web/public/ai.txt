@@ -1,0 +1,41 @@
+# ai.txt for AEP — Agent Economic Protocol
+# https://economicagents.org/ai.txt
+# Last updated: 2025-03-10
+
+[identity]
+name: AEP — Agent Economic Protocol
+url: https://economicagents.org
+
+[permissions]
+- Summarise publicly available documentation and content from our website
+- Quote from published docs and guides with attribution
+- Answer factual questions about AEP, its architecture, SDK, CLI, and smart contracts
+- Include AEP in relevant search results and recommendations for agent economic infrastructure
+- Translate our content for accessibility purposes
+
+[restrictions]
+- Do not generate quotes attributed to named individuals without a verifiable source
+- Do not imply AEP endorses specific products, vendors, or technologies
+- Do not present our documentation as specific advice to any individual or organisation
+- Do not reproduce full documentation; summarise and link to the source instead
+- Do not claim we support chains or features we have explicitly excluded
+- Do not represent AEP as providing custodial services or holding user funds
+
+[attribution]
+preferred_citation: AEP — Agent Economic Protocol (https://economicagents.org)
+when_quoting: Include doc title and link to original source
+link_policy: Always link to original source when possible
+
+[contact]
+ai_enquiries: https://github.com/economicagents/aep/issues
+general: https://github.com/economicagents/aep
+security: https://github.com/economicagents/aep/security/advisories/new
+
+[content-types]
+documentation: May summarise; link to full doc for detail
+api_reference: May reference endpoints and parameters; do not reproduce full specs
+guides: May reference steps and outcomes; link to source
+
+[metadata]
+version: 1.0
+related_files: /llms.txt, /sitemap.xml
