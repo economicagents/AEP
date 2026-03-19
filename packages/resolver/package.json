@@ -22,9 +22,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@aep/graph": "file:../graph",
-    "@aep/indexer": "file:../indexer",
-    "@aep/sdk": "file:../sdk",
+    "@aep/graph": "workspace:*",
+    "@aep/indexer": "workspace:*",
+    "@aep/sdk": "workspace:*",
     "viem": "^2.21.0"
   },
   "devDependencies": {

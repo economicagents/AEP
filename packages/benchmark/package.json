@@ -12,9 +12,9 @@
     "test": "echo 'No tests'"
   },
   "dependencies": {
-    "@aep/indexer": "file:../indexer",
-    "@aep/resolver": "file:../resolver",
-    "@aep/sdk": "file:../sdk",
+    "@aep/indexer": "workspace:*",
+    "@aep/resolver": "workspace:*",
+    "@aep/sdk": "workspace:*",
     "viem": "^2.21.0"
   },
   "devDependencies": {

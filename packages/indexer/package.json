@@ -26,7 +26,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@aep/sdk": "file:../sdk",
+    "@aep/sdk": "workspace:*",
     "viem": "^2.21.0"
   },
   "optionalDependencies": {

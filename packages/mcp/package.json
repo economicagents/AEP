@@ -25,11 +25,11 @@
     "test": "echo 'No tests'"
   },
   "dependencies": {
-    "@aep/graph": "file:../graph",
-    "@aep/keystore": "file:../keystore",
-    "@aep/indexer": "file:../indexer",
-    "@aep/resolver": "file:../resolver",
-    "@aep/sdk": "file:../sdk",
+    "@aep/graph": "workspace:*",
+    "@aep/keystore": "workspace:*",
+    "@aep/indexer": "workspace:*",
+    "@aep/resolver": "workspace:*",
+    "@aep/sdk": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "zod": "^3.25.0"
   },

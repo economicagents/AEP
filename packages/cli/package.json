@@ -23,11 +23,11 @@
     "test": "echo 'No tests'"
   },
   "dependencies": {
-    "@aep/indexer": "file:../indexer",
-    "@aep/keystore": "file:../keystore",
-    "@aep/monitor": "file:../monitor",
-    "@aep/resolver": "file:../resolver",
-    "@aep/sdk": "file:../sdk",
+    "@aep/indexer": "workspace:*",
+    "@aep/keystore": "workspace:*",
+    "@aep/monitor": "workspace:*",
+    "@aep/resolver": "workspace:*",
+    "@aep/sdk": "workspace:*",
     "commander": "^12.1.0",
     "viem": "^2.21.0"
   },

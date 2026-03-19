@@ -13,8 +13,8 @@
     "verify": "pnpm run build && node dist/01-verify-deployment.js"
   },
   "dependencies": {
-    "@aep/keystore": "file:../keystore",
-    "@aep/sdk": "file:../sdk",
+    "@aep/keystore": "workspace:*",
+    "@aep/sdk": "workspace:*",
     "viem": "^2.21.0",
     "zod": "^3.25.0"
   },
