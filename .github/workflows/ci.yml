@@ -14,7 +14,7 @@ jobs:
     name: Contracts (Foundry)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
@@ -31,7 +31,7 @@ jobs:
     name: TypeScript (pnpm)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: pnpm/action-setup@v4
