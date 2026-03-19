@@ -25,7 +25,7 @@
     "@aep/graph": "workspace:*",
     "@aep/indexer": "workspace:*",
     "@aep/sdk": "workspace:*",
-    "viem": "^2.21.0"
+    "viem": "^2.47.5"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

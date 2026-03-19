@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@aep/sdk": "workspace:*",
-    "viem": "^2.21.0"
+    "viem": "^2.47.5"
   },
   "optionalDependencies": {
     "better-sqlite3": "^12.1.0",

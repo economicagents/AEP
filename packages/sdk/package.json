@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@aep/graph": "workspace:*",
-    "viem": "^2.21.0",
+    "viem": "^2.47.5",
     "zod": "^3.25.0"
   },
   "devDependencies": {

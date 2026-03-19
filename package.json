@@ -19,6 +19,6 @@
   },
   "devDependencies": {
     "aep-cli": "workspace:*",
-    "viem": "^2.21.0"
+    "viem": "^2.47.5"
   }
 }
