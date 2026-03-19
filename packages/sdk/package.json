@@ -1,0 +1,43 @@
+{
+  "name": "@economicagents/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for AEP (Agent Economic Protocol)",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/economicagents/AEP.git"
+  },
+  "bugs": "https://github.com/economicagents/AEP/issues",
+  "homepage": "https://github.com/economicagents/AEP#readme",
+  "keywords": ["aep", "agent", "erc-4337", "account-abstraction", "x402", "ethereum", "viem"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@economicagents/graph": "workspace:*",
+    "viem": "^2.21.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

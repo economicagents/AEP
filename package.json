@@ -1,0 +1,27 @@
+{
+  "name": "@economicagents/workspace",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "aep": "aep",
+    "swap-for-usdc": "node scripts/swap-for-usdc.mjs",
+    "preinstall": "npx only-allow pnpm",
+    "bootstrap": "bash scripts/bootstrap-repo.sh",
+    "build": "pnpm -r run build",
+    "test": "pnpm run test:contracts && pnpm run test:packages",
+    "test:contracts": "cd contracts && forge test -vvv",
+    "test:packages": "pnpm -r run test",
+    "test:smoke": "pnpm --filter @economicagents/smoke-tests run test",
+    "validate:testnet": "pnpm --filter @economicagents/smoke-tests run validate",
+    "dev:web": "pnpm --filter @economicagents/web dev",
+    "build:web": "pnpm --filter @economicagents/web build",
+    "verify:npm-metadata": "node scripts/verify-npm-publish-metadata.mjs",
+    "publish:packages": "bash scripts/publish-npm-packages.sh",
+    "publish:packages:dry-run": "DRY_RUN=1 bash scripts/publish-npm-packages.sh"
+  },
+  "devDependencies": {
+    "@economicagents/cli": "workspace:*",
+    "viem": "^2.21.0"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "@economicagents/api",
+  "version": "0.1.0",
+  "description": "REST API for AEP intent resolver, analytics, fleet, probe",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/economicagents/AEP.git"
+  },
+  "bugs": "https://github.com/economicagents/AEP/issues",
+  "homepage": "https://github.com/economicagents/AEP#readme",
+  "keywords": ["aep", "agent", "api", "intent-resolution", "x402"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "aep-api": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "echo 'No tests'"
+  },
+  "dependencies": {
+    "@economicagents/graph": "workspace:*",
+    "@economicagents/keystore": "workspace:*",
+    "@economicagents/indexer": "workspace:*",
+    "@economicagents/resolver": "workspace:*",
+    "@economicagents/sdk": "workspace:*",
+    "@hono/graphql-server": "^0.7.0",
+    "@hono/node-server": "^1.19.9",
+    "graphql": "^16.9.0",
+    "hono": "^4",
+    "viem": "^2.21.0",
+    "x402-hono": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

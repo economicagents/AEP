@@ -1,0 +1,8 @@
+/* AEP — Agent Economic Protocol */
+
+Project: AEP
+Site: https://economicagents.org
+GitHub: https://github.com/economicagents/AEP
+
+Built with: Next.js, React, TypeScript, Tailwind CSS
+Standards: ERC-4337, ERC-8004, x402
