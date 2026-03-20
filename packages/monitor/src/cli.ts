@@ -17,8 +17,12 @@ import { rejectPathTraversal } from "@economicagents/sdk";
 import { runMonitor } from "./index.js";
 import type { MonitorConfig } from "./types.js";
 
+// Match hosted deploy: /var/lib/aep/env sets AEP_RPC_URL and often BASE_MAINNET_RPC (Alchemy).
 const DEFAULT_RPC =
-  process.env.AEP_RPC_URL ?? process.env.BASE_SEPOLIA_RPC ?? "https://sepolia.base.org";
+  process.env.AEP_RPC_URL ??
+  process.env.BASE_MAINNET_RPC ??
+  process.env.BASE_SEPOLIA_RPC ??
+  "https://sepolia.base.org";
 const DEFAULT_ENTRYPOINT = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
 const DEFAULT_STATE_PATH = join(homedir(), ".aep", "monitor");
 
