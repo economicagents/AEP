@@ -1,0 +1,128 @@
+# AEP — Cursor index exclusions
+# Goal: shrink noisy / third-party / generated content so agents focus on first-party source.
+# Syntax: gitignore-style. Remove a line if you need that path indexed for a task.
+
+# --- Version control ---
+.git/
+
+# --- Secrets & local overrides (never index) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+
+# --- Internal / machine-local (already gitignored; belt-and-suspenders) ---
+resources-internal/
+
+# --- Package managers & installs ---
+node_modules/
+.pnpm-store/
+**/.pnpm-store/
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Lockfiles: huge and duplicate package.json for architectural work; re-enable if resolving deps
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# --- TypeScript / JS build & caches ---
+dist/
+build/
+out/
+.next/
+.open-next/
+.nuxt/
+.svelte-kit/
+.turbo/
+.vercel/
+coverage/
+**/.vite/
+**/vitest.config.*.timestamp-*
+
+*.tsbuildinfo
+.eslintcache
+.prettiercache
+.stylelintcache
+.parcel-cache/
+
+# Source maps (generated alongside bundles)
+**/*.map
+
+# --- Web: Cloudflare / Next ---
+packages/web/.wrangler/
+**/wrangler.toml.bundled*
+packages/web/lib/docs-content.generated.ts
+next-env.d.ts
+
+# --- Foundry / Solidity (artifacts; keep contracts/src/** and scripts/** indexed) ---
+contracts/cache/
+contracts/out/
+contracts/broadcast/
+contracts/lib/
+cache/
+contracts/report.md
+
+# Tooling venvs (e.g. Slither)
+.venv/
+.venv-*/
+**/.venv/
+
+# --- Tests: artifacts & snapshots (tests themselves stay indexed) ---
+test-results/
+playwright-report/
+blob-report/
+benchmark-results/
+playwright/.cache/
+**/__screenshots__/
+**/__snapshots__/
+**/*.snap
+
+# --- Storybook / static export noise (if added later) ---
+storybook-static/
+
+# --- Logs & temp ---
+logs/
+**/logs/
+*.log
+tmp/
+temp/
+.tmp/
+
+# --- OS & editors ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+*.orig
+
+# --- Local SQLite / embedded DB files (graph/indexer dev artifacts) ---
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.sqlite
+**/*.sqlite3
+
+# --- Archives & binaries (contrib dumps, releases) ---
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.wasm
+*.dylib
+*.so
+*.dll
+*.exe
+
+# --- Optional local agent / skill caches (not repo source) ---
+.agents/
+.claude/
+skills-lock.json
