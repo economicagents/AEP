@@ -1,0 +1,41 @@
+{
+  "name": "@economicagents/viem-rpc",
+  "version": "0.1.0",
+  "description": "Shared viem HTTP/WebSocket JSON-RPC transport helper for AEP packages",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/economicagents/AEP.git"
+  },
+  "bugs": {
+    "url": "https://github.com/economicagents/AEP/issues"
+  },
+  "homepage": "https://github.com/economicagents/AEP#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

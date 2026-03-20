@@ -1,0 +1,28 @@
+{
+  "name": "@economicagents/smoke-tests",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "description": "Base Sepolia E2E smoke tests and validation for AEP testnet deployments",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:unit": "vitest run 02-unit",
+    "test:e2e": "vitest run 03-e2e",
+    "validate": "pnpm run build && node dist/run-all.js",
+    "verify": "pnpm run build && node dist/01-verify-deployment.js"
+  },
+  "dependencies": {
+    "@economicagents/keystore": "workspace:*",
+    "@economicagents/sdk": "workspace:*",
+    "viem": "^2.21.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "files": [
+    "dist"
+  ]
+}
