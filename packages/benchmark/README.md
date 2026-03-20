@@ -1,6 +1,6 @@
 # @economicagents/benchmark
 
-Benchmark harness comparing AEP-resolved vs naive x402 procurement (cost, latency, quality).
+Optional harness to compare **AEP-guided** vs **naive** x402 procurement (cost, latency, quality). Useful for research and regression checks when you run a local index and resolver.
 
 ## Install
 
@@ -8,7 +8,7 @@ Benchmark harness comparing AEP-resolved vs naive x402 procurement (cost, latenc
 pnpm add @economicagents/benchmark
 ```
 
-From monorepo: `cd packages/benchmark && pnpm run build`.
+**From a local clone** of [economicagents/AEP](https://github.com/economicagents/AEP): `cd packages/benchmark && pnpm run build`.
 
 ## Usage
 
@@ -16,18 +16,17 @@ From monorepo: `cd packages/benchmark && pnpm run build`.
 cd packages/benchmark && pnpm run benchmark
 ```
 
-Or: `node dist/run.js` after build.
+Or after build: `node dist/run.js`.
 
-Requires synced index: `aep-index sync` or `cd packages/indexer && node dist/cli.js sync`. See [indexer README](../indexer/README.md) and [resolver README](../resolver/README.md).
+Requires a synced index (`aep-index sync` or `packages/indexer` CLI). See [@economicagents/indexer](https://github.com/economicagents/AEP/blob/main/packages/indexer/README.md) and [@economicagents/resolver](https://github.com/economicagents/AEP/blob/main/packages/resolver/README.md).
 
-## Build & Test
+## Build & test
 
 ```bash
 pnpm run build
 pnpm run test
 ```
 
-## Docs
+## Documentation
 
-- [Cookbook](../../docs/COOKBOOK.md) — Intent resolution
-- [Indexer](../indexer/README.md) — Provider index setup
+- [Cookbook](https://github.com/economicagents/AEP/blob/main/docs/COOKBOOK.md) — Intent resolution

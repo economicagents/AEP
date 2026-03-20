@@ -1,57 +1,53 @@
 # @economicagents/web
 
-Landing page and documentation site for the Agent Economic Protocol (AEP). Built with Next.js.
+Next.js **landing page** and **documentation site** for AEP (`/docs/*`). **Integrators** usually read [economicagents.org/docs](https://economicagents.org/docs) or the markdown under `docs/` in the repo; this package is for **building or hosting** that site yourself.
 
-## Overview
+## What it includes
 
-- **Landing page** — Single scrollable page with hero, problem, capabilities, and CTA sections
-- **Docs site** — Served at `/docs/*` from the `docs/` directory (quickstart, cookbook, deployment, architecture, threat model, API reference)
+- Marketing landing (hero, capabilities, CTA)
+- Docs routes generated from the repository `docs/` tree (quickstart, cookbook, deployment, architecture, threat model, API reference, etc.)
 
 ## Install
 
-From monorepo: `pnpm install` at repo root.
+Workspace package in [economicagents/AEP](https://github.com/economicagents/AEP). From repo root:
 
-## Build & Dev
+```bash
+pnpm install
+```
+
+## Build & dev
 
 ```bash
 # From repo root
 pnpm run build:web   # or: pnpm --filter @economicagents/web build
 
-# Development
 pnpm run dev:web     # or: pnpm --filter @economicagents/web dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Docs
+## Site operators: adding docs
 
-Docs are loaded from `docs/` via `lib/docs.ts`. Add a slug in `SLUG_TO_FILE` and `DocNavLinks.tsx` to expose a new doc.
+Docs are wired in `packages/web` (e.g. `lib/docs.ts`, `DocNavLinks.tsx`). Add slugs there when you introduce new markdown under `docs/`.
 
-## Deployment
+## Deployment (hosting the site)
 
-### Cloudflare Workers (recommended)
+### Cloudflare Workers
 
-The site uses OpenNext for Cloudflare. Deploy via CLI or Workers Builds:
+The app targets OpenNext on Cloudflare.
 
-**CLI deploy:**
+**CLI:**
+
 ```bash
 cd packages/web && pnpm run deploy
 ```
 
-**Workers Builds (Git integration):** In Cloudflare Dashboard → Workers & Pages → aep-web → Settings → Builds, use:
-
-| Setting | Value |
-|---------|-------|
-| Root directory | `packages/web` |
-| Build command | `pnpm run build:cf` |
-| Deploy command | `npx wrangler deploy` |
-
-> **Important:** Use `build:cf` (not `build`). The `build:cf` script pre-bundles docs for Workers (no Node.js `fs` at runtime) and runs OpenNext.
+**Workers Builds** (dashboard): root directory **`packages/web`**, build **`pnpm run build:cf`**, deploy **`npx wrangler deploy`**. Use **`build:cf`** (not plain `build`) so docs are pre-bundled for the Worker runtime.
 
 ### Other platforms
 
-The app is static-friendly; docs are rendered at build time. Can also deploy to Vercel with `next build`.
+Static-friendly; `next build` works on Vercel and similar hosts if you adapt env and output.
 
 ## Configuration
 
-No required env vars for basic run. SEO/GEO use `NEXT_PUBLIC_*` or metadata in layout/page components.
+No env vars required for a basic local run. SEO uses `NEXT_PUBLIC_*` or layout metadata as needed.

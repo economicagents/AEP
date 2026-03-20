@@ -1,6 +1,6 @@
 # @economicagents/mcp
 
-MCP (Model Context Protocol) server for AEP. Exposes tools for budget management, intent resolution, analytics, fleet, and economic relationships.
+[MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server for AEP: budget tools, intent resolution, analytics, fleet, and economic relationship readouts. Use with Cursor, Claude Desktop, or any MCP-capable client.
 
 ## Install
 
@@ -8,7 +8,7 @@ MCP (Model Context Protocol) server for AEP. Exposes tools for budget management
 pnpm add @economicagents/mcp
 ```
 
-From monorepo: `cd packages/mcp && pnpm run build`.
+**From a local clone** of [economicagents/AEP](https://github.com/economicagents/AEP): `cd packages/mcp && pnpm run build`.
 
 ## Tools
 
@@ -35,28 +35,30 @@ From monorepo: `cd packages/mcp && pnpm run build`.
 cd packages/mcp && pnpm run build && node dist/index.js
 ```
 
-Add to Cursor/IDE MCP config:
+Example MCP config (replace `<path-to-clone>` with your checkout of [economicagents/AEP](https://github.com/economicagents/AEP)):
 
 ```json
 {
   "mcpServers": {
     "aep": {
       "command": "node",
-      "args": ["/path/to/AEP/packages/mcp/dist/index.js"]
+      "args": ["<path-to-clone>/packages/mcp/dist/index.js"]
     }
   }
 }
 ```
 
-Requires `~/.aep/config.json`. `set_budget_caps` requires `AEP_KEYSTORE_ACCOUNT` (preferred) or `PRIVATE_KEY` env.
+Requires `~/.aep/config.json`. `set_budget_caps` needs `AEP_KEYSTORE_ACCOUNT` (preferred) or `PRIVATE_KEY`.
 
-## Build & Test
+## Build & test
 
 ```bash
 pnpm run build
 pnpm run test
 ```
 
-## Docs
+## Documentation
 
-- [Cookbook](../../docs/COOKBOOK.md) — MCP integration
+- [MCP reference](https://github.com/economicagents/AEP/blob/main/docs/reference/mcp.md)
+- [Cookbook](https://github.com/economicagents/AEP/blob/main/docs/COOKBOOK.md)
+- [Integration guide](https://github.com/economicagents/AEP/blob/main/docs/guides/integration.md)

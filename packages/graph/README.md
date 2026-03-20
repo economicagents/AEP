@@ -1,6 +1,6 @@
 # @economicagents/graph
 
-Economic graph for AEP: payments, credit events, credit scoring, and provider recommendations. Synced to SQLite (`graph.db`).
+Economic graph for AEP: sync on-chain payments and credit events into SQLite (`graph.db`), compute credit scores, and provider recommendations.
 
 ## Install
 
@@ -8,15 +8,15 @@ Economic graph for AEP: payments, credit events, credit scoring, and provider re
 pnpm add @economicagents/graph
 ```
 
-From monorepo: `cd packages/graph && pnpm run build`.
+**From a local clone** of [economicagents/AEP](https://github.com/economicagents/AEP): `cd packages/graph && pnpm run build`.
 
 ## Usage
 
 ```bash
-# Via CLI (when installed)
+# Standalone binary when installed
 aep-graph sync
 
-# Via @economicagents/cli (includes graph)
+# Via CLI meta-package
 aep graph sync
 aep analytics <address>
 aep credit-score <address>
@@ -30,26 +30,25 @@ const score = computeCreditScore(graphPath, accountAddress);
 const recs = getRecommendations(graphPath, providers, accountAddress, capability, limit);
 ```
 
-Used by the resolver for recommendation boost (`accountAddress` + `graphPath`).
+The resolver uses `graphPath` + `accountAddress` for recommendation boost.
 
 ## Configuration
 
-- **Graph path:** `~/.aep/graph.db` by default; override via `graphPath` in config
-- **RPC:** Required for sync; `RPC_URL` or config `rpcUrl`
-- **Config:** `~/.aep/config.json`
+- **Graph path:** default `~/.aep/graph.db`; override `graphPath` in `~/.aep/config.json`
+- **RPC:** `RPC_URL` or config `rpcUrl` for `graph sync`
 
 ## Dependencies
 
-Optional: `better-sqlite3` (v12+). Tests fall back to `sql.js` when native bindings unavailable.
+Optional native `better-sqlite3` (v12+); tests fall back to `sql.js` when bindings are unavailable.
 
-## Build & Test
+## Build & test
 
 ```bash
 pnpm run build
 pnpm run test
 ```
 
-## Docs
+## Documentation
 
-- [Cookbook](../../docs/COOKBOOK.md) — Fleet, analytics
-- [Architecture](../../docs/ARCHITECTURE.md) — Graph schema
+- [Cookbook](https://github.com/economicagents/AEP/blob/main/docs/COOKBOOK.md) — Fleet, analytics
+- [Architecture](https://github.com/economicagents/AEP/blob/main/docs/ARCHITECTURE.md) — Graph role in the stack

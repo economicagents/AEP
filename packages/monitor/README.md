@@ -1,6 +1,6 @@
 # @economicagents/monitor
 
-On-chain event monitoring for AEP. Polls for Frozen, DefaultDeclared, BreachDeclared, PolicyRecordSpendFailed, UserOperationRevertReason. Emits JSON lines to stdout; optional webhook POST.
+On-chain monitoring for AEP accounts and relationships: poll for `Frozen`, `DefaultDeclared`, `BreachDeclared`, policy failures, and UserOp revert reasons. Logs JSON lines to stdout; optional webhook POST.
 
 ## Install
 
@@ -8,7 +8,7 @@ On-chain event monitoring for AEP. Polls for Frozen, DefaultDeclared, BreachDecl
 pnpm add @economicagents/monitor
 ```
 
-From monorepo: used via `aep monitor` (CLI) or `cd packages/monitor && pnpm run build`.
+**From a local clone** of [economicagents/AEP](https://github.com/economicagents/AEP): use `aep monitor` from `@economicagents/cli`, or `cd packages/monitor && pnpm run build` and run `node dist/cli.js`.
 
 ## Usage
 
@@ -16,7 +16,7 @@ From monorepo: used via `aep monitor` (CLI) or `cd packages/monitor && pnpm run 
 aep monitor
 ```
 
-Config: `~/.aep/config.json` under `monitor`:
+Config in `~/.aep/config.json` under `monitor`:
 
 ```json
 {
@@ -32,20 +32,20 @@ Config: `~/.aep/config.json` under `monitor`:
 
 ## Configuration
 
-- **accounts** — AEP accounts to watch for Frozen, PolicyRecordSpendFailed, UserOperationRevertReason
-- **facilities** — CreditFacility addresses for DefaultDeclared
-- **slas** — SLAContract addresses for BreachDeclared
-- **webhookUrl** — Optional POST endpoint for alerts
-- **pollIntervalMs** — Poll interval (default: 15000)
+- **accounts** — Smart accounts to watch
+- **facilities** — CreditFacility addresses (`DefaultDeclared`)
+- **slas** — SLAContract addresses (`BreachDeclared`)
+- **webhookUrl** — Optional alert POST URL
+- **pollIntervalMs** — Poll interval (default 15000)
 
-## Build & Test
+## Build & test
 
 ```bash
 pnpm run build
 pnpm run test
 ```
 
-## Docs
+## Documentation
 
-- [Cookbook](../../docs/COOKBOOK.md) — On-chain monitor
-- [Incident Response](../../docs/INCIDENT-RESPONSE-PLAYBOOK.md)
+- [Cookbook](https://github.com/economicagents/AEP/blob/main/docs/COOKBOOK.md) — Monitor setup
+- [Incident response](https://github.com/economicagents/AEP/blob/main/docs/INCIDENT-RESPONSE-PLAYBOOK.md) — When alerts indicate compromise or policy issues

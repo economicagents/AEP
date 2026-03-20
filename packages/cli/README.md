@@ -1,6 +1,6 @@
 # @economicagents/cli
 
-Command-line interface for the Agent Economic Protocol (AEP).
+Command-line interface for the Agent Economic Protocol (AEP): deploy accounts, policies, resolution, relationships, fleet, and monitoring.
 
 ## Install
 
@@ -8,7 +8,9 @@ Command-line interface for the Agent Economic Protocol (AEP).
 pnpm add -g @economicagents/cli
 ```
 
-From monorepo: `cd packages/cli && pnpm run build` then add `dist/cli.js` to PATH or run via `node dist/cli.js`.
+The `aep` binary is added to your PATH.
+
+**From a local clone** of [economicagents/AEP](https://github.com/economicagents/AEP): `cd packages/cli && pnpm run build`, then run `node dist/cli.js` or `pnpm exec aep` from the repo root.
 
 ## Configuration
 
@@ -54,14 +56,14 @@ aep fleet list
 aep monitor
 ```
 
-## Build & Test
+## Build & test
 
 ```bash
 pnpm run build
 pnpm run test
 ```
 
-## Docs
+## Documentation
 
-- [Cookbook](../../docs/COOKBOOK.md) — Quick reference, policies
-- [Deployment](../../docs/guides/deployment.md) — Full deployment guide
+- [Cookbook](https://github.com/economicagents/AEP/blob/main/docs/COOKBOOK.md) — Quick reference, policies
+- [Deployment](https://github.com/economicagents/AEP/blob/main/docs/guides/deployment.md) — Networks, validation, services

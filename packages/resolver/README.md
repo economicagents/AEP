@@ -1,6 +1,6 @@
 # @economicagents/resolver
 
-Intent resolution engine for AEP. Discovers providers (from index), filters by capability and reputation, scores, and plans execution. Supports multi-step decomposition and max_total enforcement.
+Intent resolution for AEP: discover providers from the index, filter by capability and reputation, score, plan execution (including multi-step decomposition and `max_total`).
 
 ## Install
 
@@ -8,11 +8,11 @@ Intent resolution engine for AEP. Discovers providers (from index), filters by c
 pnpm add @economicagents/resolver
 ```
 
-From monorepo: `cd packages/resolver && pnpm run build`.
+**From a local clone** of [economicagents/AEP](https://github.com/economicagents/AEP): `cd packages/resolver && pnpm run build`.
 
 ## Usage
 
-Used by CLI `aep resolve`, MCP `resolve_intent`, and REST API POST /resolve.
+Used by `aep resolve`, MCP `resolve_intent`, and REST `POST /resolve` when those entrypoints run locally.
 
 ```typescript
 import { resolveIntent } from "@economicagents/resolver";
@@ -26,24 +26,24 @@ const plan = await resolveIntent(intent, {
 
 ## Configuration
 
-- **Index:** `indexPath` — path to provider index (`~/.aep/index/` default)
-- **Graph:** `graphPath` — path to graph.db for recommendation boost
-- **Account:** `accountAddress` — for personalized provider ranking
+- **Index:** `indexPath` — provider index directory (default `~/.aep/index/`)
+- **Graph:** `graphPath` — `graph.db` for recommendation boost
+- **Account:** `accountAddress` — personalized ranking when set
 
 ## Dependencies
 
 - `@economicagents/graph` — Credit scoring, recommendations
-- `@economicagents/indexer` — Provider index (searchByCapability)
-- `@economicagents/sdk` — Intent schema, config
+- `@economicagents/indexer` — Index search APIs
+- `@economicagents/sdk` — Intent schema, config helpers
 
-## Build & Test
+## Build & test
 
 ```bash
 pnpm run build
 pnpm run test
 ```
 
-## Docs
+## Documentation
 
-- [Cookbook](../../docs/COOKBOOK.md) — Intent resolution
-- [API Reference](../../docs/api.md) — REST endpoints
+- [Cookbook](https://github.com/economicagents/AEP/blob/main/docs/COOKBOOK.md) — Intent resolution
+- [API reference](https://github.com/economicagents/AEP/blob/main/docs/api.md)

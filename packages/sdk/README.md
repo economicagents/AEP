@@ -1,6 +1,6 @@
 # @economicagents/sdk
 
-TypeScript SDK for the Agent Economic Protocol (AEP). Account deployment, policy management, x402 interception, and UserOp execution.
+TypeScript SDK for the Agent Economic Protocol (AEP): deploy and operate smart accounts, policy modules, x402-safe payments, and UserOp execution.
 
 ## Install
 
@@ -8,7 +8,7 @@ TypeScript SDK for the Agent Economic Protocol (AEP). Account deployment, policy
 pnpm add @economicagents/sdk
 ```
 
-From monorepo: used via `file:../sdk` in other packages.
+**From a local clone** of [economicagents/AEP](https://github.com/economicagents/AEP): this package is built with `pnpm run build` in `packages/sdk`; other workspace packages depend on it via `workspace:*`.
 
 ## Usage
 
@@ -49,14 +49,14 @@ await execute({ accountAddress, calls, bundlerRpcUrl, ... });
 - `@economicagents/graph` — Credit scoring, analytics (optional for graph features)
 - `zod` — Intent schema validation
 
-## Build & Test
+## Build & test
 
 ```bash
 pnpm run build
 pnpm run test
 ```
 
-## Docs
+## Documentation
 
-- [Cookbook](../../docs/COOKBOOK.md) — Policies, deployment, x402
-- [Architecture](../../docs/ARCHITECTURE.md) — Contract hierarchy, validateUserOp flow
+- [Cookbook](https://github.com/economicagents/AEP/blob/main/docs/COOKBOOK.md) — Policies, deployment, x402
+- [Architecture](https://github.com/economicagents/AEP/blob/main/docs/ARCHITECTURE.md) — Contracts and `validateUserOp`

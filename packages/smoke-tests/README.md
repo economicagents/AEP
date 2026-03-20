@@ -1,18 +1,20 @@
 # @economicagents/smoke-tests
 
-Base Sepolia E2E smoke tests and validation. Verify deployment, run unit tests against live RPC, optional E2E (credit, escrow, splitter, SLA).
+**Contributors & CI:** Base Sepolia validation — deployment address checks, read-only RPC tests, optional E2E (credit, escrow, splitter, SLA). **Not required** when you only install `@economicagents/*` from npm for an application.
 
 ## Install
 
-From monorepo: `pnpm install` at repo root (smoke-tests is a workspace package).
+Used as a workspace package in [economicagents/AEP](https://github.com/economicagents/AEP). From repo root:
+
+```bash
+pnpm install
+```
 
 ## Usage
 
 ```bash
 pnpm run validate:testnet
 ```
-
-Flags:
 
 | Flag | Description |
 |------|-------------|
@@ -29,13 +31,13 @@ Flags:
 | BUNDLER_RPC_URL | For execute E2E |
 | SKIP_E2E=1 | Skip E2E in CI |
 
-## Build & Test
+## Build & test
 
 ```bash
 pnpm run build
 pnpm run test
 ```
 
-## Docs
+## Documentation
 
-- [Deployment guide](../../docs/guides/deployment.md) — testnet addresses, mainnet preflight, smoke
+- [Deployment](https://github.com/economicagents/AEP/blob/main/docs/guides/deployment.md) — Addresses, mainnet gate, smoke workflow
