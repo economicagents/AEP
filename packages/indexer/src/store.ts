@@ -2,12 +2,13 @@
  * JSON-based index store for MVP. Persists providers and sync state.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
-import { dirname, join } from "path";
-import type { IndexedProvider, IndexState } from "./types.js";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync } from "fs";
+import { join } from "path";
+import type { IndexedProvider, IndexState, SyncCheckpoint } from "./types.js";
 
 const PROVIDERS_FILE = "providers.json";
 const STATE_FILE = "state.json";
+const SYNC_CHECKPOINT_FILE = "sync-checkpoint.json";
 
 export function ensureIndexDir(indexPath: string): void {
   mkdirSync(indexPath, { recursive: true });
@@ -57,4 +58,26 @@ export function saveState(indexPath: string, state: IndexState): void {
   ensureIndexDir(indexPath);
   const file = join(indexPath, STATE_FILE);
   writeFileSync(file, JSON.stringify(state, null, 2));
+}
+
+export function loadSyncCheckpoint(indexPath: string): SyncCheckpoint | null {
+  const file = join(indexPath, SYNC_CHECKPOINT_FILE);
+  if (!existsSync(file)) return null;
+  try {
+    const data = readFileSync(file, "utf-8");
+    return JSON.parse(data) as SyncCheckpoint;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSyncCheckpoint(indexPath: string, checkpoint: SyncCheckpoint): void {
+  ensureIndexDir(indexPath);
+  const file = join(indexPath, SYNC_CHECKPOINT_FILE);
+  writeFileSync(file, JSON.stringify(checkpoint, null, 2));
+}
+
+export function removeSyncCheckpoint(indexPath: string): void {
+  const file = join(indexPath, SYNC_CHECKPOINT_FILE);
+  if (existsSync(file)) unlinkSync(file);
 }

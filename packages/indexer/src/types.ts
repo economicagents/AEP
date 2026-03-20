@@ -45,6 +45,19 @@ export interface IndexState {
   updatedAt: number;
 }
 
+/** Resume file for long first-time backfills (log chunks + optional agent phase) */
+export interface SyncCheckpoint {
+  v: 1;
+  /** Chain head at sync start (fixed upper bound for log scan) */
+  toBlock: number;
+  /** Highest block fully scanned for logs (Registered + URIUpdated) */
+  lastChunkEnd: number;
+  /** True when all log chunks through toBlock are done; agent pass may be pending */
+  logsComplete: boolean;
+  agentIds: string[];
+  uriByAgent: Record<string, string>;
+}
+
 export interface IndexConfig {
   rpcUrl: string;
   chainId: number;

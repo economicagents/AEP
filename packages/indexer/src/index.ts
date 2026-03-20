@@ -10,10 +10,38 @@ import type { Address } from "viem";
 import { IDENTITY_REGISTRY_ABI } from "./abi.js";
 import { fetchRegistrationFile } from "./fetch.js";
 import { probeX402Endpoint } from "./probe.js";
-import { loadProviders, loadState, saveProviders, saveState } from "./store.js";
+import {
+  loadProviders,
+  loadState,
+  loadSyncCheckpoint,
+  removeSyncCheckpoint,
+  saveProviders,
+  saveState,
+  saveSyncCheckpoint,
+} from "./store.js";
 import { buildSearchIndex } from "./search-store.js";
 import { normalizeServices } from "./normalize-services.js";
-import type { IndexConfig, IndexedProvider } from "./types.js";
+import type { IndexConfig, IndexedProvider, SyncCheckpoint } from "./types.js";
+
+function uriRecordToMap(record: Record<string, string>): Map<bigint, string> {
+  const m = new Map<bigint, string>();
+  for (const [k, v] of Object.entries(record)) {
+    m.set(BigInt(k), v);
+  }
+  return m;
+}
+
+function uriMapToRecord(m: Map<bigint, string>): Record<string, string> {
+  const o: Record<string, string> = {};
+  for (const [k, v] of m) {
+    o[k.toString()] = v;
+  }
+  return o;
+}
+
+function saveCheckpointSlice(indexPath: string, cp: Omit<SyncCheckpoint, "v">): void {
+  saveSyncCheckpoint(indexPath, { v: 1, ...cp });
+}
 
 export async function syncIndex(config: IndexConfig): Promise<{ added: number; updated: number }> {
   const chain = config.chainId === base.id ? base : baseSepolia;
@@ -23,47 +51,90 @@ export async function syncIndex(config: IndexConfig): Promise<{ added: number; u
   });
 
   const state = loadState(config.indexPath);
-  const fromBlock = state ? BigInt(state.lastBlock + 1) : 0n;
-  const toBlock = await client.getBlockNumber();
-  const CHUNK_SIZE = 9999n;
+  let checkpoint = loadSyncCheckpoint(config.indexPath);
+  const syncHead = await client.getBlockNumber();
 
-  if (fromBlock > toBlock) {
-    return { added: 0, updated: 0 };
+  if (checkpoint && state && state.lastBlock >= checkpoint.toBlock) {
+    removeSyncCheckpoint(config.indexPath);
+    checkpoint = null;
   }
 
-  const agentIds = new Set<bigint>();
-  const uriByAgent = new Map<bigint, string>();
+  const fromBlock = state ? BigInt(state.lastBlock + 1) : 0n;
+  const CHUNK_SIZE = 9999n;
 
-  for (let start = fromBlock; start <= toBlock; start += CHUNK_SIZE) {
-    const end = start + CHUNK_SIZE > toBlock ? toBlock : start + CHUNK_SIZE;
-    const [reg, uri] = await Promise.all([
-      client.getLogs({
-        address: config.identityRegistryAddress,
-        event: parseAbiItem("event Registered(uint256 indexed agentId, string agentURI, address indexed owner)"),
-        fromBlock: start,
-        toBlock: end,
-      }),
-      client.getLogs({
-        address: config.identityRegistryAddress,
-        event: parseAbiItem("event URIUpdated(uint256 indexed agentId, string newURI, address indexed updatedBy)"),
-        fromBlock: start,
-        toBlock: end,
-      }),
-    ]);
-    for (const log of reg) {
-      const args = (log as { args?: { agentId?: bigint; agentURI?: string } }).args;
-      if (args?.agentId != null) {
-        agentIds.add(args.agentId);
-        if (args.agentURI) uriByAgent.set(args.agentId, args.agentURI);
+  let agentIds = new Set<bigint>();
+  let uriByAgent = new Map<bigint, string>();
+
+  if (checkpoint?.logsComplete) {
+    for (const id of checkpoint.agentIds) {
+      agentIds.add(BigInt(id));
+    }
+    uriByAgent = uriRecordToMap(checkpoint.uriByAgent);
+  } else {
+    if (!checkpoint && fromBlock > syncHead) {
+      return { added: 0, updated: 0 };
+    }
+
+    const scanToBlock = checkpoint ? BigInt(checkpoint.toBlock) : syncHead;
+    let scanStart: bigint;
+    if (checkpoint && !checkpoint.logsComplete) {
+      scanStart = BigInt(checkpoint.lastChunkEnd + 1);
+      for (const id of checkpoint.agentIds) {
+        agentIds.add(BigInt(id));
+      }
+      uriByAgent = uriRecordToMap(checkpoint.uriByAgent);
+    } else {
+      scanStart = fromBlock;
+    }
+
+    if (scanStart <= scanToBlock) {
+      for (let start = scanStart; start <= scanToBlock; start += CHUNK_SIZE) {
+        const end = start + CHUNK_SIZE > scanToBlock ? scanToBlock : start + CHUNK_SIZE;
+        const [reg, uri] = await Promise.all([
+          client.getLogs({
+            address: config.identityRegistryAddress,
+            event: parseAbiItem("event Registered(uint256 indexed agentId, string agentURI, address indexed owner)"),
+            fromBlock: start,
+            toBlock: end,
+          }),
+          client.getLogs({
+            address: config.identityRegistryAddress,
+            event: parseAbiItem("event URIUpdated(uint256 indexed agentId, string newURI, address indexed updatedBy)"),
+            fromBlock: start,
+            toBlock: end,
+          }),
+        ]);
+        for (const log of reg) {
+          const args = (log as { args?: { agentId?: bigint; agentURI?: string } }).args;
+          if (args?.agentId != null) {
+            agentIds.add(args.agentId);
+            if (args.agentURI) uriByAgent.set(args.agentId, args.agentURI);
+          }
+        }
+        for (const log of uri) {
+          const args = (log as { args?: { agentId?: bigint; newURI?: string } }).args;
+          if (args?.agentId != null) {
+            agentIds.add(args.agentId);
+            uriByAgent.set(args.agentId, args.newURI ?? "");
+          }
+        }
+        saveCheckpointSlice(config.indexPath, {
+          toBlock: Number(scanToBlock),
+          lastChunkEnd: Number(end),
+          logsComplete: false,
+          agentIds: [...agentIds].map((x) => x.toString()),
+          uriByAgent: uriMapToRecord(uriByAgent),
+        });
       }
     }
-    for (const log of uri) {
-      const args = (log as { args?: { agentId?: bigint; newURI?: string } }).args;
-      if (args?.agentId != null) {
-        agentIds.add(args.agentId);
-        uriByAgent.set(args.agentId, args.newURI ?? "");
-      }
-    }
+
+    saveCheckpointSlice(config.indexPath, {
+      toBlock: Number(scanToBlock),
+      lastChunkEnd: Number(scanToBlock),
+      logsComplete: true,
+      agentIds: [...agentIds].map((x) => x.toString()),
+      uriByAgent: uriMapToRecord(uriByAgent),
+    });
   }
 
   const providers = loadProviders(config.indexPath);
@@ -204,13 +275,14 @@ export async function syncIndex(config: IndexConfig): Promise<{ added: number; u
   const allProviders = Array.from(byAgent.values());
   saveProviders(config.indexPath, allProviders);
   saveState(config.indexPath, {
-    lastBlock: Number(toBlock),
+    lastBlock: Number(syncHead),
     chainId: config.chainId,
     identityRegistryAddress: config.identityRegistryAddress,
     updatedAt: Date.now(),
   });
 
   await buildSearchIndex(config.indexPath, allProviders);
+  removeSyncCheckpoint(config.indexPath);
 
   return { added, updated };
 }
@@ -226,4 +298,4 @@ export {
   writeEmbeddings,
 } from "./search-store.js";
 export type { SearchResult } from "./search-store.js";
-export type { IndexConfig, IndexedProvider, IndexState } from "./types.js";
+export type { IndexConfig, IndexedProvider, IndexState, SyncCheckpoint } from "./types.js";
