@@ -106,17 +106,17 @@ cd packages/indexer && pnpm run build && node dist/cli.js sync [--rpc <url>] [--
 
 Optionally run `node dist/cli.js embed` for semantic search. Index at `~/.aep/index/` by default. See [aep-integration](../aep-integration/SKILL.md).
 
-## Optional: API (Managed Resolution)
+## Optional: REST API (self-hosted)
 
 ```bash
 cd packages/api && pnpm run build && node dist/index.js
 ```
 
-Without paywall (free): run as above. With x402 paywall: `AEP_TREASURY_ADDRESS=0x... AEP_RESOLVE_PRICE=0.005 node dist/index.js`. See [aep-monetization](../aep-monetization/SKILL.md).
+Without treasury/pricing env, `POST /resolve` runs without x402. With paywall: set `AEP_TREASURY_ADDRESS` and pricing env per [aep-monetization](../aep-monetization/SKILL.md).
 
-## Smoke Validation (Pre-Launch)
+## Validation (testnet smoke)
 
-Before mainnet or after redeploying, run smoke tests:
+Before mainnet or after redeploying contracts, run:
 
 ```bash
 pnpm run validate:testnet
@@ -128,9 +128,9 @@ Flags: `--verify-only`, `--unit-only`, `--e2e-only`. Env: `BASE_SEPOLIA_RPC`, `P
 
 **Example 1: Deploy new AEP account on Base Sepolia**
 
-User says: "Deploy an AEP account for testing"
+**Scenario:** Deploy an AEP account for testing.
 
-Actions:
+Steps:
 1. Deploy factory: `cd contracts && PRIVATE_KEY=0x... forge script script/Deploy.s.sol --rpc-url https://sepolia.base.org --broadcast`
 2. Note factory address from output
 3. Deploy account: `aep deploy --factory 0xFactoryAddress`
@@ -140,9 +140,9 @@ Result: Account deployed; config updated with `account` address.
 
 **Example 2: Deploy relationship contracts with fees**
 
-User says: "Deploy escrow and credit factories with treasury"
+**Scenario:** Deploy escrow and credit factories with a treasury.
 
-Actions:
+Steps:
 1. Set `AEP_TREASURY_ADDRESS=0x...` and `PRIVATE_KEY=0x...`
 2. Run `forge script script/DeployRelationships.s.sol --rpc-url https://sepolia.base.org --broadcast`
 3. Add returned factory addresses to `~/.aep/config.json`
@@ -169,9 +169,9 @@ Cause: Factory not deployed or config missing.
 
 Solution: Deploy factory first via `forge script script/Deploy.s.sol`. Add `factoryAddress` to `~/.aep/config.json`.
 
-## Base Mainnet
+## Base mainnet
 
-Mainnet deployment is post-audit. Use `--rpc-url https://mainnet.base.org`. See [references/addresses.md](references/addresses.md).
+Use Base mainnet RPC (e.g. `https://mainnet.base.org`) and follow **[docs/guides/deployment.md](../../docs/guides/deployment.md)** for the mainnet gate, scripts, and canonical addresses. Sepolia reference table: [references/addresses.md](references/addresses.md).
 
 ## Links
 

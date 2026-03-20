@@ -62,9 +62,11 @@ Index sync with `--probe-x402` probes providers during crawl and updates uptime/
 
 Optional: `better-sqlite3` (v12+), `sqlite-vec`. Falls back to legacy keyword discovery if unavailable.
 
-## Install Note
+## Install note
 
-From monorepo: run `node dist/cli.js` from packages/indexer. With `pnpm add -g @economicagents/indexer`, the `aep-index` bin is available. The `aep provider probe` command comes from `@economicagents/cli` (separate package).
+- **npm:** `pnpm add -g @economicagents/indexer` exposes the **`aep-index`** binary.
+- **Local clone:** `packages/indexer` → `pnpm run build`, then `node dist/cli.js sync …`.
+- **Provider probe:** `aep provider probe` lives in **`@economicagents/cli`**, not the indexer package.
 
 ## Links
 

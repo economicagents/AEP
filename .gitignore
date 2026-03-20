@@ -31,7 +31,8 @@ packages/web/.wrangler/
 # Cursor (local IDE — not versioned)
 .cursor/
 
-resources-internal/
+# Agent memory lives at the workspace root (sibling to this repo), not in the public tree
+AGENTS.md
 
 .agents/
 .claude/

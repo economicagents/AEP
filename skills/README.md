@@ -1,8 +1,8 @@
-# AEP Skills
+# AEP skills
 
-Skills for AI agents and developers working with the Agent Economic Protocol (AEP).
+Optional **markdown skill packs** for Cursor, Claude Code, OpenClaw, and similar tools. They complement the main integration path (**SDK**, **CLI**, **contracts**); you do not need them to build on AEP.
 
-**Compatibility:** Cursor, Claude Code, OpenClaw. Requires aep CLI, forge (for deploy), PRIVATE_KEY where noted. Base Sepolia or Base mainnet.
+**Typical requirements:** `aep` CLI where noted, Foundry `forge` for deploy skills, and `PRIVATE_KEY` / keystore only for operations that sign. Chains: Base Sepolia or Base mainnet unless stated otherwise.
 
 ## Trigger Phrase Index
 

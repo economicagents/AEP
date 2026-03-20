@@ -61,7 +61,7 @@ AEP/
 ├── docs/
 │   ├── ARCHITECTURE.md, THREAT-MODEL.md, guides/deployment.md
 │   ├── COOKBOOK.md      # Consolidated reference
-│   └── BACKLOG.md       # Deferred work & known limitations (not a status/marketing doc)
+│   └── BACKLOG.md       # Integrator-facing limitations & deferred work
 ├── skills/
 │   ├── aep-budget/, aep-counterparty/, aep-x402/, aep-rate-limit/
 │   ├── aep-deploy/, aep-integration/, aep-intent-resolution/, aep-indexer/
@@ -95,9 +95,9 @@ pnpm run test:contracts   # forge test -vvv (from contracts/)
 pnpm run test:packages   # vitest for sdk, indexer, graph, resolver, monitor
 ```
 
-### Install from npm (consumers)
+### Install from npm
 
-Maintainers publish **`@economicagents/*`** libraries (including **`@economicagents/cli`**, which installs the **`aep`** command) to the public registry; see [docs/PUBLISHING.md](docs/PUBLISHING.md) and `pnpm run publish:packages` / `publish:packages:dry-run` in this repo.
+Published packages use the **`@economicagents/*`** scope on the public npm registry, including **`@economicagents/cli`** (global command **`aep`**).
 
 ```bash
 npm install -g @economicagents/cli
@@ -110,7 +110,7 @@ In an application:
 npm install @economicagents/sdk viem zod
 ```
 
-The docs site package **`@economicagents/web`** is not published; deploy it from source (e.g. Cloudflare / Vercel) if you self-host the marketing site.
+**Releasing packages** from this monorepo is documented in [docs/PUBLISHING.md](docs/PUBLISHING.md). The docs site package **`@economicagents/web`** is not published; build it from this repo (e.g. Cloudflare / Vercel) if you want a self-hosted docs deployment.
 
 ```bash
 # Contracts only (from contracts/)
@@ -345,36 +345,38 @@ forge test --match-contract SLAContractTest
 
 ---
 
-## Best Practices
+## Best practices
 
-- **No external runtime deps:** User-provided RPC; no Alchemy, Infura, or hosted APIs
-- **Forkable references only:** ERC-4337 core vendored from eth-infinitism; no third-party service lock-in
-- **Config:** Factory address required for deploy/address; deploy factory first
-- **Kill switch:** `aep freeze` blocks all operations; use on suspected key compromise
+- **Bring your own RPC:** You supply JSON-RPC URLs (public, dedicated, or paid) via config and env — nothing in the protocol depends on a specific vendor.
+- **Optional reference API:** A public deployment of the resolution stack is at **https://api.economicagents.org**; self-hosting remains fully supported (see [Deployment](docs/guides/deployment.md)).
+- **Forkable references:** ERC-4337 core is vendored from eth-infinitism; avoid coupling integrations to proprietary account infra.
+- **Config:** Factory address required for `deploy` / `address`; deploy the factory first.
+- **Kill switch:** `aep freeze` blocks user operations; use if you suspect key compromise ([Incident playbook](docs/INCIDENT-RESPONSE-PLAYBOOK.md)).
 
 ---
 
 ## Documentation
 
-**User-facing** (hosted at [economicagents.org/docs](https://economicagents.org/docs) or via `pnpm run dev:web`):
+Also published at [economicagents.org/docs](https://economicagents.org/docs) (or run `pnpm run dev:web` in `packages/web`).
 
-- [Quick Start](docs/getting-started/quickstart.md) — 0 to AEP in 15 minutes
-- [Cookbook](docs/COOKBOOK.md) — Deploy, policies, integration, economic relationships, fleet, monitor
+**Integration & operations**
+
+- [Quick Start](docs/getting-started/quickstart.md) — First deploy in minutes
+- [Cookbook](docs/COOKBOOK.md) — Policies, integration, relationships, fleet, monitor
 - [Deployment](docs/guides/deployment.md) — Sepolia, mainnet, validation, local services
-- [Architecture](docs/ARCHITECTURE.md) — Account, policy modules, factory, validateUserOp flow
-- [Threat Model](docs/THREAT-MODEL.md) — Attack surfaces and mitigations
-- [API Reference](docs/api.md) — REST API, intent schema, MCP tools, CLI commands
+- [Architecture](docs/ARCHITECTURE.md) — Account, modules, factory, `validateUserOp`
+- [Threat model](docs/THREAT-MODEL.md) — Trust assumptions and mitigations
+- [API reference](docs/api.md) — REST, MCP, intent schema, CLI index
+- [Backlog](docs/BACKLOG.md) — Known limitations and deferred features
+- [Incident response](docs/INCIDENT-RESPONSE-PLAYBOOK.md) — If you operate accounts in production
 
-**Internal** (repo-only, for contributors):
+**Contributing & releases**
 
-- [Document map](docs/DOCUMENT-MAP.md) — Public `docs/` index (points to maintainer tree)
-- [Limitations & deferred work](docs/BACKLOG.md) — Gaps integrators should know
-- [Incident Response](docs/INCIDENT-RESPONSE-PLAYBOOK.md) — Security and ops procedures
-- [Publishing](docs/PUBLISHING.md) — npm publish workflow
-- [Open source release](docs/OPEN-SOURCE-RELEASE.md) — Pre-public checklist (secrets, history)
-- [Contributing](CONTRIBUTING.md) — How to contribute
-
-**Maintainers:** `resources-internal/` (gitignored) — `DOCUMENT-MAP.md`, `gtm-backlog-distilled.md`, `deployment-hosted/` (not on the public docs site).
+- [Contributing](CONTRIBUTING.md) — Workflow, DCO, tests
+- [Document map](docs/DOCUMENT-MAP.md) — `docs/` index
+- [Repository](docs/REPOSITORY.md) — Canonical GitHub URL for links and `package.json` metadata
+- [Publishing](docs/PUBLISHING.md) — Shipping `@economicagents/*` to npm
+- [Open source release](docs/OPEN-SOURCE-RELEASE.md) — Checklist before going public
 
 ## Security
 

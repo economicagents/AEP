@@ -33,7 +33,7 @@ Add to your MCP config (e.g., Cursor):
   "mcpServers": {
     "aep": {
       "command": "node",
-      "args": ["/path/to/AEP/packages/mcp/dist/index.js"]
+      "args": ["<path-to-clone>/packages/mcp/dist/index.js"]
     }
   }
 }
@@ -51,7 +51,7 @@ Ensure `~/.aep/config.json` has `account` and `rpcUrl`. Set `AEP_KEYSTORE_ACCOUN
 pnpm add -g @economicagents/cli
 ```
 
-Or from the monorepo:
+Or build from a [local clone](https://github.com/economicagents/AEP) of the repository:
 
 ```bash
 cd packages/cli && pnpm run build
@@ -94,15 +94,15 @@ const hash = await execute(
 );
 ```
 
-## API (Managed Resolution)
+## REST API (self-hosted, optional x402)
 
 ```bash
 cd packages/api
 pnpm run build
-# Without paywall (free)
+# Without treasury / pricing → no x402 gate on POST /resolve
 node dist/index.js
 
-# With x402 paywall
+# With x402 paywall on POST /resolve
 AEP_TREASURY_ADDRESS=0x... AEP_RESOLVE_PRICE=0.005 node dist/index.js
 ```
 
@@ -114,7 +114,7 @@ Sync the provider index before using `aep resolve` or MCP `resolve_intent`:
 aep-index sync [--rpc <url>] [--probe-x402]
 ```
 
-From monorepo: `cd packages/indexer && pnpm run build && node dist/cli.js sync`
+From a local clone: `cd packages/indexer && pnpm run build && node dist/cli.js sync`
 
 Optionally run `aep-index embed` for semantic capability matching. Index stored at `~/.aep/index/` by default.
 
@@ -130,9 +130,9 @@ aep config validate
 
 **Example 1: Add AEP MCP to Cursor**
 
-User says: "Add AEP MCP server to Cursor"
+**Scenario:** Add the AEP MCP server to Cursor.
 
-Actions:
+Steps:
 1. Add MCP config with `command: node`, `args: [path/to/packages/mcp/dist/index.js]`
 2. Ensure `~/.aep/config.json` has `account`, `rpcUrl`, `factoryAddress`
 3. Set `PRIVATE_KEY` for policy updates
@@ -141,9 +141,9 @@ Result: MCP connected; tools `get_balance`, `get_policy_state`, `set_budget_caps
 
 **Example 2: Execute a payment via bundler**
 
-User says: "Send 0.001 ETH to 0xRecipient"
+**Scenario:** Send 0.001 ETH to a recipient via UserOp.
 
-Actions:
+Steps:
 1. Add `bundlerRpcUrl` to `~/.aep/config.json`
 2. Run `aep execute -t 0xRecipient -v 1000000000000000 -d 0x --bundler https://...`
 

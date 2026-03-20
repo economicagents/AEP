@@ -25,8 +25,6 @@ metadata:
 - User asks about origination fee, setup fee, or API paywall
 - User needs fee-free mode for testnet
 
-**Status:** Implemented. Treasury, relationship fees (credit origination, escrow/SLA setup), and API x402 paywall are live. Production deployment pending treasury address setup.
-
 ## Treasury
 
 All revenue flows to a single AEP Treasury address on Base (USDC).
@@ -39,9 +37,9 @@ All revenue flows to a single AEP Treasury address on Base (USDC).
 
 See [references/fees-and-env.md](references/fees-and-env.md) for revenue streams table, env vars, and relationship contract fee details.
 
-## Managed Resolution API (x402 Paywall)
+## REST API x402 paywall
 
-When `AEP_TREASURY_ADDRESS` and `AEP_RESOLVE_PRICE` are set, `POST /resolve` is gated via x402. Endpoints: Standard = `POST /resolve` ($0.005), Premium = `POST /resolve/premium` ($0.02). When disabled, API runs free. MCP and CLI use local resolver; no paywall.
+On a server running `packages/api`, when `AEP_TREASURY_ADDRESS` and pricing env are set, `POST /resolve` (and premium tier `POST /resolve/premium`) return **402** until payment headers satisfy x402. Default list prices are **$0.005** / **$0.02** when using the stock env defaults. With treasury unset, the same server exposes resolution without that gate. MCP and CLI `aep resolve` use a **local** resolver in-process unless you pass `--api-url`.
 
 ## Fee-Free Mode
 

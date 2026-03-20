@@ -2,6 +2,10 @@
 
 Thank you for your interest in contributing to the Agent Economic Protocol (AEP).
 
+## Cursor / multi-repo workspaces
+
+**`AGENTS.md` is not in this repository.** If you use a parent folder workspace (e.g. `AEP/` + `AEP-Internal/` together), keep agent memory in **`AGENTS.md` at that parent** so Cursor applies it to both trees. Clones of this repo alone do not include that file.
+
 ## Development Setup
 
 Clone **with submodules** (or run `git submodule update --init --recursive` once). See [README § Clone](README.md#clone).
@@ -28,14 +32,14 @@ See [README](README.md) for prerequisites (Node.js 18+, Foundry, pnpm). From a f
 4. Keep PRs focused; link related issues
 5. **Sign your commits** — Every commit must include `Signed-off-by: Name <email>` in the commit message. See [Developer Certificate of Origin](https://developercertificate.org/) (DCO).
 
-## Internal Docs
+## Documentation
 
-- [Document map](docs/DOCUMENT-MAP.md) — Public `docs/` index; maintainer paths noted there
-- [Limitations & deferred work](docs/BACKLOG.md) — Integrator-facing gaps
-- [Incident Response](docs/INCIDENT-RESPONSE-PLAYBOOK.md) — Security and ops procedures
-- [Publishing](docs/PUBLISHING.md) — npm publish workflow
-- [Open source release](docs/OPEN-SOURCE-RELEASE.md) — Secret scan, history, org checklist
-- [Repository URL](docs/REPOSITORY.md) — Canonical GitHub location for links and npm metadata
+- [Document map](docs/DOCUMENT-MAP.md) — Index of `docs/`
+- [Backlog](docs/BACKLOG.md) — Known gaps for integrators
+- [Incident response](docs/INCIDENT-RESPONSE-PLAYBOOK.md) — Operating accounts safely
+- [Publishing](docs/PUBLISHING.md) — npm releases (maintainers)
+- [Open source release](docs/OPEN-SOURCE-RELEASE.md) — Public-release checklist (maintainers)
+- [Repository](docs/REPOSITORY.md) — Canonical GitHub URL for metadata
 
 ## Architecture
 

@@ -12,9 +12,6 @@
 *.pem
 *.p12
 
-# --- Internal / machine-local (already gitignored; belt-and-suspenders) ---
-resources-internal/
-
 # --- Package managers & installs ---
 node_modules/
 .pnpm-store/

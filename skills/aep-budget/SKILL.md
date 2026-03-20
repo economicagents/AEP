@@ -122,9 +122,9 @@ aep rate-limit set -m <module> --max-tx 10 --window-seconds 3600
 
 **Example 1: Set daily spend limit**
 
-User says: "Limit this agent to 5 USDC per day"
+**Scenario:** Cap agent spend at 5 USDC per day.
 
-Actions:
+Steps:
 1. Get BudgetPolicy module: `aep modules`
 2. Set caps: `aep policy-set -m <module> --max-per-tx 1000000 --max-daily 5000000 --max-weekly 20000000`
 3. Verify: `aep policy-get -m <module>`
@@ -133,9 +133,9 @@ Result: Agent cannot spend more than 5 USDC (6 decimals) per 24h window.
 
 **Example 2: Check if payment would pass before x402**
 
-User says: "Will a 500k payment to 0xProvider pass policy?"
+**Scenario:** Check whether a 500k (6-decimal USDC) payment to `0xProvider` passes policy.
 
-Actions: Run `aep check-policy -a 500000 -t 0xProvider`
+Steps: Run `aep check-policy -a 500000 -t 0xProvider`
 
 Result: Output shows allowed/denied and reason (e.g. BUDGET_EXCEEDED, COUNTERPARTY_BLOCKED).
 

@@ -92,7 +92,7 @@ Audit complete (post-remediation). Formal verification in progress. Foundry inva
 
 ## Handoff
 
-Formal verification tooling requires environment setup (Halmos, Certora, or similar). A human should:
+Formal verification tooling requires environment setup (Halmos, Certora, or similar). Typical workflow:
 
 1. Choose the FV tool (Halmos, Certora, or other).
 2. Set up the environment.
@@ -103,4 +103,4 @@ Formal verification tooling requires environment setup (Halmos, Certora, or simi
 
 - [Architecture](../../docs/ARCHITECTURE.md)
 - [Threat Model](../../docs/THREAT-MODEL.md)
-- [Limitations & deferred work](../../docs/BACKLOG.md) — includes FV pointer and other gaps
+- [Backlog / limitations](../../docs/BACKLOG.md) — deferred FV work and other gaps
