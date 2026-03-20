@@ -149,9 +149,9 @@ MCP tools: `credit_state`, `escrow_state`, `splitter_state`, `sla_state`.
 
 | Path | Paywall | Use case |
 |------|---------|----------|
-| **Managed API** (`POST /resolve`) | Yes, when treasury set | Hosted resolution service |
-| **MCP** (`resolve_intent`) | No | Self-hosted agents; uses local resolver |
-| **CLI** (`aep resolve`) | No | Local resolver. Use `aep resolve --api-url <url>` to call managed API (paywalled when enabled) |
+| **REST** `POST /resolve` | Yes, when treasury set | Any API instance with treasury configured |
+| **MCP** (`resolve_intent`) | No | Resolver inside the MCP server process |
+| **CLI** (`aep resolve`) | No | Local resolver; `--api-url` targets a remote API (paywalled if that server enables it) |
 
 **Skill:** [aep-monetization](../skills/aep-monetization/SKILL.md)
 

@@ -1,6 +1,6 @@
-# AEP Incident Response Playbook
+# Incident response playbook
 
-Step-by-step procedures for security and operational incidents. Use with [THREAT-MODEL](THREAT-MODEL.md) and [COOKBOOK](COOKBOOK.md).
+Procedures for **accounts and deployments you operate** (local, testnet, or production): key compromise, runaway spend, policy issues, and index quality. Use with [THREAT-MODEL](THREAT-MODEL.md) and [COOKBOOK](COOKBOOK.md).
 
 ---
 

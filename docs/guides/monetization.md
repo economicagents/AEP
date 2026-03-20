@@ -12,9 +12,9 @@ When `AEP_TREASURY_ADDRESS` (or `treasuryAddress` in config) is set, `POST /reso
 
 | Path | Paywall | Use case |
 |------|---------|----------|
-| **Managed API** (`POST /resolve`) | Yes, when treasury set | Hosted resolution service |
-| **MCP** (`resolve_intent`) | No | Self-hosted agents; uses local resolver |
-| **CLI** (`aep resolve`) | No | Local resolver. Use `aep resolve --api-url <url>` to call managed API (paywalled when enabled) |
+| **REST** `POST /resolve` | Yes, when treasury set | Any API instance you or a provider runs with treasury configured |
+| **MCP** (`resolve_intent`) | No | Local resolver in the MCP process |
+| **CLI** (`aep resolve`) | No | Local resolver. `aep resolve --api-url <url>` hits a remote API (paywalled when that server enables it) |
 
 ## Resolution Prices
 

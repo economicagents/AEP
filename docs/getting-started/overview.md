@@ -61,7 +61,7 @@ Credit facilities, conditional escrow, revenue splitters, and SLA contracts—al
 | [CLI](cli/installation) | Scripts, ops, local dev | Low |
 | [SDK](sdk/installation) | Custom apps, integrations | Medium |
 | [MCP](reference/mcp) | Cursor, OpenClaw, AI agents | Low |
-| [REST API](reference/rest-api) | Hosted resolution, paywall | Medium |
+| [REST API](reference/rest-api) | Self-hosted or remote resolution, optional paywall | Medium |
 
 ## Next Steps
 

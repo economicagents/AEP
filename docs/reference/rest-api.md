@@ -1,6 +1,6 @@
 # REST API
 
-Default port: 3847. Config: `~/.aep/config.json`. Override: `PORT`, `AEP_CONFIG_PATH`.
+HTTP interface for intent resolution, analytics, fleet, probe, and GraphQL — typically **self-hosted** from `packages/api`. Default port **3847**. Config: `~/.aep/config.json`. Override: `PORT`, `AEP_CONFIG_PATH`.
 
 ## Health
 

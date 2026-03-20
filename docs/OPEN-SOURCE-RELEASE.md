@@ -1,6 +1,8 @@
 # Open source release checklist
 
-Use this with [REPOSITORY.md](REPOSITORY.md) (canonical GitHub URL) and [PUBLISHING.md](PUBLISHING.md).
+**Audience:** Maintainers preparing or auditing a public release of this repository. If you only **use** AEP (CLI, SDK, contracts), you can skip this page.
+
+Use with [REPOSITORY.md](REPOSITORY.md) (canonical GitHub URL) and [PUBLISHING.md](PUBLISHING.md).
 
 ## Before going public
 
@@ -28,3 +30,11 @@ After deploying to Base **8453**, update **`docs/guides/deployment.md`** (*Mainn
 ## Smoke test after npm publish
 
 On a machine **without** this monorepo: `npm install -g @economicagents/cli@<version>` then `aep --help` (and one read-only command such as `aep config validate` if config exists).
+
+---
+
+## Repository administration (org / release owners)
+
+- **Legacy remotes:** If work previously used another Git remote, contributors only need this public repository for builds and PRs; archive obsolete remotes when you no longer need them.
+- **Single-root `main`:** If history is collapsed to one root commit on `main` (orphan + force-push), use subject **`Initial public tree: Agent Economic Protocol (AEP)`** so tags and tooling stay consistent. Keep a **`Signed-off-by:`** trailer for DCO (e.g. `git commit -s`).
+- **Renames:** If the org or repository slug changes, update `GITHUB_REPO` in the web package, every `package.json` **`repository`** field, and this document together.

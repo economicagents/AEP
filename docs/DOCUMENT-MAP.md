@@ -1,6 +1,6 @@
-# AEP document map (public)
+# AEP document map
 
-Indexes **only** documentation that ships in the OSS repo under `docs/`. It does **not** include maintainer-only runbooks or GTM planning.
+Use this page to find the right file under **`docs/`** for your integration or deployment. Everything listed here is part of the public repository.
 
 | Need | Canonical location |
 |------|-------------------|
@@ -9,5 +9,3 @@ Indexes **only** documentation that ships in the OSS repo under `docs/`. It does
 | **Incidents & security ops** | [INCIDENT-RESPONSE-PLAYBOOK.md](INCIDENT-RESPONSE-PLAYBOOK.md) |
 | **Threat model** | [THREAT-MODEL.md](THREAT-MODEL.md) |
 | **Day-to-day integration** | [COOKBOOK.md](COOKBOOK.md) |
-
-**Maintainers:** Hosted deploy bundles, EC2 runbooks, AWS notes, and GTM/engineering routing live in the private repo [**economicagents/AEP-Internal**](https://github.com/economicagents/AEP-Internal) (org access required). Entry point there: **`DOCUMENT-MAP.md`** at repo root and **`deployment-hosted/docs/runbook.md`**. Keep chain truth and public architecture in this `docs/` tree; do not publish internal host inventory in OSS.

@@ -1,6 +1,6 @@
-# Installing Skills
+# Installing skills
 
-How to install AEP skills for OpenClaw and Cursor.
+**Optional:** Wire repo skill packs into OpenClaw or Cursor MCP. Skip this if you only use the SDK or CLI from npm.
 
 ## OpenClaw
 

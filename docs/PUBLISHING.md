@@ -1,6 +1,8 @@
-# Publishing npm Packages
+# Publishing npm packages
 
-Guide for publishing AEP packages to npm. Ensure [NOTICE](../NOTICE) in the repo stays accurate for vendored dependencies.
+**Audience:** Contributors who **release** `@economicagents/*` packages from this monorepo. If you only **install** AEP, use `npm install` / `pnpm add`; you do not need this guide.
+
+Ensure [NOTICE](../NOTICE) in the repo stays accurate for vendored dependencies.
 
 ## Publish order
 

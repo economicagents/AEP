@@ -1,6 +1,6 @@
 # Integration
 
-MCP, OpenClaw, and execute UserOp integration.
+Wire AEP into your stack: **MCP** (Cursor and compatible IDEs), **OpenClaw** skills, and **UserOp** execution from the CLI.
 
 > [!IMPORTANT]
 > Never commit `PRIVATE_KEY` or expose it in logs. Use environment variables or a secure key manager.

@@ -1,5 +1,7 @@
 # Formal verification handoff
 
+**Audience:** Researchers and contributors scoping proof work. Most integrators can skip this page.
+
 Future work: encode and prove invariants for core policy and account logic.
 
 1. Choose an FV toolchain (e.g. Halmos, Certora, or another suitable prover).

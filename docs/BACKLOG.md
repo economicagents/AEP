@@ -1,6 +1,6 @@
 # Limitations & deferred work
 
-What is **not** implemented yet, and **known gaps** in behavior — for integrators and auditors. This is not a marketing status page; for a concise **shipped** overview use the repository **README** at repo root (section **Implementation Progress**).
+Known **gaps** and **not-yet-built** items so you can plan integrations and audits accurately. For a high-level shipped feature list, see the **[README](../README.md)** (Implementation Progress); for security assumptions, see **[THREAT-MODEL.md](THREAT-MODEL.md)**.
 
 **Also:** [DOCUMENT-MAP.md](DOCUMENT-MAP.md) · [guides/deployment.md](guides/deployment.md) · [THREAT-MODEL.md](THREAT-MODEL.md) (trust assumptions & mitigations) · [COOKBOOK.md](COOKBOOK.md) (operations).
 

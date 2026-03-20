@@ -1,6 +1,8 @@
-# Skills Overview
+# Skills overview
 
-AEP skills are modular capability packages that extend AI agents (OpenClaw, Cursor, etc.) with AEP-specific knowledge and workflows.
+**Optional:** Markdown skill packs for **OpenClaw**, **Cursor** (with MCP), and similar AI tooling. You do **not** need skills to integrate via the SDK, CLI, or contracts.
+
+AEP skills bundle AEP-specific context and workflows for those environments.
 
 ## What Are Skills?
 

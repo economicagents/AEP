@@ -89,7 +89,7 @@ aep execute -t <recipient> -v <amount> -d <calldata> [--bundler <url>]
 aep resolve '{"capability":"image-generation","budget":{"max_per_unit":"0.01","max_total":"1.00"}}'
 ```
 
-Use `--api-url <url>` to call managed API (paywalled when enabled).
+Use `--api-url <url>` to call a remote REST API (x402 paywall if that server has treasury configured).
 
 ---
 

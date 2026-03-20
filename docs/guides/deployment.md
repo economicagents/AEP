@@ -20,7 +20,7 @@ Single guide: **contract deploy** (Base Sepolia + Base mainnet), **validation**,
 - **Node.js** 18+, **pnpm**, **Foundry** (`forge`, `cast`)
 - **`.env`** at repo root (never commit): signer + RPCs. Symlink for forge: `ln -sf ../.env contracts/.env` · `chmod 600 .env`
 
-**Signer:** Prefer **`AEP_KEYSTORE_ACCOUNT`** after `cast wallet import <name> --interactive`. Fallback: **`PRIVATE_KEY`** ([`AGENTS.md`](../../AGENTS.md)).
+**Signer:** Prefer **`AEP_KEYSTORE_ACCOUNT`** after `cast wallet import <name> --interactive`. Fallback: **`PRIVATE_KEY`** — never commit it; see key hygiene in [`COOKBOOK.md`](../COOKBOOK.md) and [`THREAT-MODEL.md`](../THREAT-MODEL.md).
 
 ---
 
@@ -133,7 +133,7 @@ pnpm run validate:testnet
 
 - **Phase 1 / 2:** forge **exits non-zero** on failure.  
 - **Phase 2.5** (`aep deploy`): script **logs** on failure — run the printed `pnpm exec aep deploy --factory … --owner … --rpc …` (+ `--account` if keystore). The CLI must use chain **8453** when `config.chainId`/ **`AEP_CHAIN_ID`** is mainnet (not hardcoded Sepolia), or signing will fail against a mainnet RPC.  
-- **Post-deploy sync:** After Phase 2.5, the script runs **`scripts/sync-mainnet-docs-from-broadcast.mjs`**, which reads **`contracts/broadcast/Deploy.s.sol/8453/run-latest.json`** and **`DeployRelationships.s.sol/8453/run-latest.json`**, merges **`~/.aep/config.json`** (implementation + factories; keeps `account` and other fields from the CLI), and updates **this page’s** mainnet address table, read-only `cast` loop, and operator cheat-sheet env vars. (`pnpm run sync:mainnet-from-broadcast` with `--treasury`, `--owner`, `--rpc-url` for a manual rerun.)  
+- **Post-deploy sync:** After Phase 2.5, the script runs **`scripts/sync-mainnet-docs-from-broadcast.mjs`**, which reads **`contracts/broadcast/Deploy.s.sol/8453/run-latest.json`** and **`DeployRelationships.s.sol/8453/run-latest.json`**, merges **`~/.aep/config.json`** (implementation + factories; keeps `account` and other fields from the CLI), and updates **this page’s** mainnet address table, read-only `cast` loop, and [mainnet quick reference](#mainnet-quick-reference-read-only-checks) block. (`pnpm run sync:mainnet-from-broadcast` with `--treasury`, `--owner`, `--rpc-url` for a manual rerun.)  
 - **Post-deploy sign-off:** If **`ETHERSCAN_API_KEY`** (or **`BASESCAN_API_KEY`**) is set, **`pnpm run verify:mainnet-signoff`** runs automatically (treasury/factory consistency + explorer source — see [Verify on Basescan](#verify-on-basescan)). Set **`SKIP_MAINNET_SIGNOFF=1`** to skip; set **`REQUIRE_MAINNET_SIGNOFF=1`** if the script should **exit non-zero** when sign-off fails (default: print failure but do not exit, so explorer indexing lag does not block the shell after a successful broadcast).  
 - **Partial deploy:** if Phase 2 failed after Phase 1, treat **`~/.aep/config.json` as incomplete** until recovered; inspect `contracts/broadcast/` and Basescan.
 
@@ -270,7 +270,7 @@ Uses `config.account` when `monitor.accounts` is empty; optional `monitor.webhoo
 
 ### Hosted API (mainnet)
 
-A hosted instance serves **https://api.economicagents.org** (resolve, analytics, probe, graphql). **Maintainers** with org access use the private repo [**economicagents/AEP-Internal**](https://github.com/economicagents/AEP-Internal): clone it on the host (read-only **deploy key**), symlink `deployment-hosted/` to the path expected by your runbook (e.g. `/opt/aep-deploy`), run **`git pull --ff-only`** on both **AEP-Internal** and the public **`AEP`** checkout under `/opt/aep`, then **`sudo ./scripts/deploy.sh`** from `deployment-hosted/`. See also [Document map](../DOCUMENT-MAP.md).
+A public reference deployment is available at **https://api.economicagents.org** (resolve, analytics, probe, graphql). Production operations and hosting playbooks are outside this repository.
 
 ---
 
@@ -302,7 +302,7 @@ Use your chain’s factory from `config.json`. Pass `--owner`, `--rpc`, `--accou
 
 ---
 
-## Mainnet operator cheat sheet (copy-paste)
+## Mainnet quick reference (read-only checks)
 
 Run from **repo root** after filling `.env`. **No broadcast** in this block — RPC reads and post-deploy checks only.
 
