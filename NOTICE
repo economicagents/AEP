@@ -1,0 +1,12 @@
+Agent Economic Protocol (AEP)
+
+This repository contains multiple components under different licenses. See the SPDX-License-Identifier headers in source files and the LICENSE file in the repository root for the primary license applying to original AEP work.
+
+Third-party and vendored material (non-exhaustive; see subdirectories for full license text):
+
+- OpenZeppelin Contracts — MIT License. Location: contracts/lib/openzeppelin-contracts/
+- Forge Standard Library (forge-std) — Apache License 2.0. Location: contracts/lib/forge-std/
+- ERC-4337 reference implementation (eth-infinitism account-abstraction), vendored — GNU General Public License v3.0. Location: contracts/src/vendor/
+- ERC-8004 reference contracts — license as specified in contracts/lib/erc-8004-contracts/ (check upstream for the canonical terms).
+
+Published npm packages under the @economicagents scope declare SPDX license identifiers in their package.json files. Runtime Node dependencies (e.g. viem, zod, commander) are governed by their respective licenses in node_modules when installed.
