@@ -270,7 +270,7 @@ Uses `config.account` when `monitor.accounts` is empty; optional `monitor.webhoo
 
 ### Hosted API (mainnet)
 
-A public reference deployment is available at **https://api.economicagents.org** (resolve, analytics, probe, graphql). Production operations and hosting playbooks are outside this repository.
+A public reference deployment of the resolution stack is at **https://api.economicagents.org** (resolve, analytics, probe, graphql). **This repository documents contract deployment, validation, and how to run services locally or on infrastructure you control.** It does not include production hosting runbooks or operator-specific provisioning steps—document those wherever you maintain operational knowledge.
 
 ---
 

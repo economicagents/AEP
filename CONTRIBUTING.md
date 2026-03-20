@@ -4,7 +4,7 @@ Thank you for your interest in contributing to the Agent Economic Protocol (AEP)
 
 ## Cursor / multi-repo workspaces
 
-**`AGENTS.md` is not in this repository.** If you use a parent folder workspace (e.g. `AEP/` + `AEP-Internal/` together), keep agent memory in **`AGENTS.md` at that parent** so Cursor applies it to both trees. Clones of this repo alone do not include that file.
+**`AGENTS.md` is not in this repository.** If you use a Cursor workspace that combines this repo with other checkouts under one parent directory, you may keep optional agent memory in **`AGENTS.md` at that parent** so it applies across roots. Clones of this repo alone do not include that file.
 
 ## Development Setup
 

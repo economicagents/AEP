@@ -60,5 +60,5 @@ Requires `.env` with `PRIVATE_KEY` and RPC URL. Symlink: `ln -sf ../.env .env`.
 ## Docs
 
 - [Architecture](../docs/ARCHITECTURE.md) — Contract hierarchy, validateUserOp flow
-- [Deployment](../docs/guides/deployment.md) — Scripts, addresses, mainnet, hosted stack
+- [Deployment](../docs/guides/deployment.md) — Scripts, addresses, mainnet, local post-deploy services
 - [Threat Model](../docs/THREAT-MODEL.md)
