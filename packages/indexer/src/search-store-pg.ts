@@ -43,6 +43,17 @@ export async function buildPgSearchIndex(indexPath: string, providers: IndexedPr
         Date.now(),
       ]);
     }
+    const agentIds = providers.map((p) => p.agentId.toString());
+    if (agentIds.length === 0) {
+      await client.query(`DELETE FROM provider_search WHERE dataset_id = $1`, [datasetId]);
+    } else {
+      await client.query(
+        `DELETE FROM provider_search
+         WHERE dataset_id = $1
+           AND NOT (agent_id = ANY($2::text[]))`,
+        [datasetId, agentIds]
+      );
+    }
     await client.query("COMMIT");
   } catch (e) {
     await client.query("ROLLBACK");

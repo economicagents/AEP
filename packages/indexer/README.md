@@ -39,6 +39,12 @@ For hosted or high-scale search, run Postgres with the **pgvector** extension (s
 
 Optional: **`AEP_EMBEDDING_MODEL`** (default `text-embedding-3-small`), **`AEP_INDEX_DATASET_ID`** (override dataset namespace).
 
+## Operations
+
+- **Embedding dimension:** `migrations/002_provider_search.sql` defines `vector(1536)` to match `text-embedding-3-small` (see `EMBEDDING_DIMENSIONS` in `src/embeddings.ts`). Switching to a model with a different output width requires a **new SQL migration** (or schema change), not only `AEP_EMBEDDING_MODEL`.
+- **Connection pool:** The CLI exits after each command, so the `pg` pool is released with the process. Long-lived services that import this package and set `AEP_INDEX_DATABASE_URL` should call **`closePgPool()`** when shutting down (e.g. graceful shutdown) to avoid holding connections open indefinitely.
+- **Stale rows:** Each `sync` rebuilds `provider_search` for the current provider set and **deletes** rows for that dataset whose `agent_id` is no longer present, so removed agents do not linger in Postgres.
+
 ## Configuration
 
 - **RPC:** `--rpc <url>` or config / `AEP_RPC_URL`

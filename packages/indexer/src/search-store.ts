@@ -23,16 +23,16 @@ import {
 export type { SearchResult } from "./search-result.js";
 export { isSqliteAvailable };
 
+/**
+ * Build lexical search rows (Postgres `provider_search` or SQLite FTS).
+ * For Postgres vectors after sync, call `writeEmbeddings` or use `embedProviders` (runs embed + batch vector update).
+ */
 export async function buildSearchIndex(
   indexPath: string,
-  providers: IndexedProvider[],
-  _embeddings?: Map<string, Float32Array>
+  providers: IndexedProvider[]
 ): Promise<void> {
   if (getIndexDatabaseUrl()) {
     await buildPgSearchIndex(indexPath, providers);
-    if (_embeddings && _embeddings.size > 0) {
-      await writePgEmbeddings(indexPath, _embeddings);
-    }
     return;
   }
   await buildSqliteSearchIndex(indexPath, providers);

@@ -6,7 +6,7 @@
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from "vitest";
 import {
   buildSearchIndex,
   searchByCapability,
@@ -14,6 +14,7 @@ import {
   hasVectorIndex,
   isSqliteAvailable,
 } from "../src/search-store.js";
+import { resetIndexDatabaseUrlCache } from "../src/pg-config.js";
 import type { IndexedProvider } from "../src/types.js";
 
 const MOCK_PROVIDERS: IndexedProvider[] = [
@@ -72,8 +73,26 @@ const MOCK_PROVIDERS: IndexedProvider[] = [
 
 describe("search-store", () => {
   let tmpDir: string;
+  let savedIndexDbUrl: string | undefined;
+
+  beforeAll(() => {
+    savedIndexDbUrl = process.env.AEP_INDEX_DATABASE_URL;
+    delete process.env.AEP_INDEX_DATABASE_URL;
+    resetIndexDatabaseUrlCache();
+  });
+
+  afterAll(() => {
+    if (savedIndexDbUrl !== undefined) {
+      process.env.AEP_INDEX_DATABASE_URL = savedIndexDbUrl;
+    } else {
+      delete process.env.AEP_INDEX_DATABASE_URL;
+    }
+    resetIndexDatabaseUrlCache();
+  });
 
   beforeEach(() => {
+    delete process.env.AEP_INDEX_DATABASE_URL;
+    resetIndexDatabaseUrlCache();
     tmpDir = mkdtempSync(join(tmpdir(), "aep-search-test-"));
   });
 
