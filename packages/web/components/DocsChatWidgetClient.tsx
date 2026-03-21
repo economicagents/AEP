@@ -38,6 +38,11 @@ function isChatDisabledByEnv(): boolean {
   return v === "0" || v === "false";
 }
 
+function getTurnstileSiteKey(): string | undefined {
+  const v = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
+  return v || undefined;
+}
+
 function subscribeReducedMotion(callback: () => void): () => void {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
   mq.addEventListener("change", callback);
@@ -119,15 +124,21 @@ export default function DocsChatWidgetClient() {
 function DocsChatWidgetInner() {
   const panelId = useId();
   const inputId = useId();
+  const turnstileSiteKey = getTurnstileSiteKey();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingHintIndex, setLoadingHintIndex] = useState(0);
+  const [turnstileReady, setTurnstileReady] = useState(() => !getTurnstileSiteKey());
 
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
+  const turnstileMountElRef = useRef<HTMLDivElement | null>(null);
+  const turnstileWidgetIdRef = useRef<string | null>(null);
+  const turnstileTokenRef = useRef<string | null>(null);
   const fetchAbortRef = useRef<AbortController | null>(null);
   const requestSeqRef = useRef(0);
   const mountedRef = useRef(true);
@@ -178,9 +189,112 @@ function DocsChatWidgetInner() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!turnstileSiteKey) {
+      setTurnstileReady(true);
+      return;
+    }
+    if (!open) return;
+    setTurnstileReady(false);
+    turnstileTokenRef.current = null;
+  }, [open, turnstileSiteKey]);
+
+  useEffect(() => {
+    if (!open || !turnstileSiteKey) return;
+
+    let cancelled = false;
+    const container = () => turnstileContainerRef.current;
+
+    const mountWidget = () => {
+      if (cancelled) return;
+      const el = container();
+      if (!el) return;
+      turnstileMountElRef.current = el;
+      const w = window as Window & {
+        turnstile?: {
+          render: (h: HTMLElement, opts: Record<string, unknown>) => string;
+          remove: (id: string) => void;
+          reset?: (id: string) => void;
+        };
+      };
+      if (!w.turnstile) return;
+      el.innerHTML = "";
+      turnstileWidgetIdRef.current = w.turnstile.render(el, {
+        sitekey: turnstileSiteKey,
+        callback: (token: string) => {
+          turnstileTokenRef.current = token;
+          setTurnstileReady(true);
+        },
+        "error-callback": () => {
+          turnstileTokenRef.current = null;
+          setTurnstileReady(false);
+        },
+        "expired-callback": () => {
+          turnstileTokenRef.current = null;
+          setTurnstileReady(false);
+        },
+      });
+    };
+
+    const MAX_MOUNT_ATTEMPTS = 90;
+
+    const tryMount = (attempt: number) => {
+      if (attempt > MAX_MOUNT_ATTEMPTS || cancelled) return;
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        const el = container();
+        if (!el) {
+          tryMount(attempt + 1);
+          return;
+        }
+        const w = window as Window & { turnstile?: unknown };
+        if (w.turnstile) {
+          mountWidget();
+          return;
+        }
+        const existing = document.querySelector(
+          'script[src*="challenges.cloudflare.com/turnstile"]'
+        );
+        if (existing) {
+          existing.addEventListener("load", mountWidget, { once: true });
+          return;
+        }
+        const script = document.createElement("script");
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api";
+        script.async = true;
+        script.onload = mountWidget;
+        document.body.appendChild(script);
+      });
+    };
+
+    tryMount(0);
+
+    return () => {
+      cancelled = true;
+      const id = turnstileWidgetIdRef.current;
+      const w = window as Window & { turnstile?: { remove: (x: string) => void } };
+      if (id && w.turnstile?.remove) {
+        try {
+          w.turnstile.remove(id);
+        } catch {
+          /* ignore */
+        }
+      }
+      turnstileWidgetIdRef.current = null;
+      turnstileTokenRef.current = null;
+      const mountEl = turnstileMountElRef.current;
+      turnstileMountElRef.current = null;
+      if (mountEl) mountEl.innerHTML = "";
+    };
+  }, [open, turnstileSiteKey]);
+
   const send = useCallback(async () => {
     const text = input.trim();
     if (!text || loading) return;
+    if (turnstileSiteKey && !turnstileTokenRef.current) {
+      setError("Complete the verification challenge, then try again.");
+      return;
+    }
 
     setError(null);
     const userMsg: ChatMessage = { id: newMessageId(), role: "user", content: text };
@@ -201,6 +315,7 @@ function DocsChatWidgetInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: nextMessages.map(({ role, content }) => ({ role, content })),
+          turnstileToken: turnstileTokenRef.current ?? undefined,
         }),
         signal: ac.signal,
       });
@@ -233,7 +348,7 @@ function DocsChatWidgetInner() {
       const msg =
         data.error ??
         (res.status === 503
-          ? "The assistant isn’t available on this deployment right now."
+          ? "The assistant is not configured on the server (missing AI_GATEWAY_API_KEY for this deployment). Operators: set a runtime Worker secret or variable."
           : res.status === 429
             ? "Too many requests. Wait a moment and try again."
             : res.status === 413
@@ -260,7 +375,21 @@ function DocsChatWidgetInner() {
       content: data.reply.trim(),
     };
     setMessages([...nextMessages, assistantMsg]);
-  }, [input, loading, messages]);
+
+    if (turnstileSiteKey) {
+      const wid = turnstileWidgetIdRef.current;
+      const tw = window as Window & { turnstile?: { reset?: (id: string) => void } };
+      if (wid && tw.turnstile?.reset) {
+        try {
+          tw.turnstile.reset(wid);
+        } catch {
+          /* ignore */
+        }
+      }
+      turnstileTokenRef.current = null;
+      setTurnstileReady(false);
+    }
+  }, [input, loading, messages, turnstileSiteKey]);
 
   const onSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -403,6 +532,13 @@ function DocsChatWidgetInner() {
               Your question
             </label>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              {turnstileSiteKey ? (
+                <div
+                  ref={turnstileContainerRef}
+                  className="docs-chat-turnstile w-full min-h-[65px] flex items-center justify-center"
+                  aria-hidden={false}
+                />
+              ) : null}
               <textarea
                 ref={inputRef}
                 id={inputId}
@@ -420,7 +556,11 @@ function DocsChatWidgetInner() {
               />
               <button
                 type="submit"
-                disabled={loading || !input.trim()}
+                disabled={
+                  loading ||
+                  !input.trim() ||
+                  (Boolean(turnstileSiteKey) && !turnstileReady)
+                }
                 className="docs-chat-send shrink-0 rounded-lg px-4 py-2.5 text-sm font-medium min-h-[44px] w-full sm:w-auto sm:min-w-[5.5rem] touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed combo-1"
               >
                 {loading ? "Sending…" : "Send"}

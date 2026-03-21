@@ -1,12 +1,16 @@
+import type { GatewayLanguageModelOptions } from "@ai-sdk/gateway";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { createGateway, generateText } from "ai";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { checkDocsChatRateLimit } from "@/lib/docs-chat-rate-limit";
+import { verifyTurnstileToken } from "@/lib/docs-chat-turnstile";
 import {
   buildRetrievedContext,
   formatContextForPrompt,
 } from "@/lib/docs-chat-retrieval";
 
-const ANTHROPIC_VERSION = "2023-06-01";
-const DEFAULT_MODEL = "claude-3-5-haiku-20241022";
+const DEFAULT_MODEL = "openai/gpt-4o-mini";
 
 const MAX_MESSAGES = 24;
 const MAX_MESSAGE_CHARS = 8000;
@@ -22,27 +26,42 @@ const MessageSchema = z.object({
 
 const BodySchema = z.object({
   messages: z.array(MessageSchema).min(1).max(MAX_MESSAGES),
+  turnstileToken: z.string().max(5000).optional(),
 });
 
-interface AnthropicTextBlock {
-  type: "text";
-  text: string;
+function envStringFromProcess(key: string): string | undefined {
+  const v = process.env[key]?.trim();
+  return v || undefined;
 }
 
-interface AnthropicMessageResponse {
-  content: AnthropicTextBlock[];
-  stop_reason?: string;
+async function resolveEnvString(key: string): Promise<string | undefined> {
+  const fromProcess = envStringFromProcess(key);
+  if (fromProcess) return fromProcess;
+  try {
+    const { env } = await getCloudflareContext({ async: true });
+    const v = env[key as keyof typeof env];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  } catch {
+    // Not running on Cloudflare Worker (e.g. Node `next start`)
+  }
+  return undefined;
 }
 
-function getAnthropicApiKey(): string | undefined {
-  return process.env.ANTHROPIC_API_KEY?.trim() || undefined;
+async function getGatewayApiKey(): Promise<string | undefined> {
+  return resolveEnvString("AI_GATEWAY_API_KEY");
 }
 
-function getModel(): string {
-  const raw = process.env.AEP_DOCS_CHAT_MODEL?.trim();
+function isValidGatewayModelId(raw: string): boolean {
+  const t = raw.trim();
+  if (t.length < 3 || t.length > 120) return false;
+  return /^[a-zA-Z0-9][a-zA-Z0-9._-]*\/[a-zA-Z0-9][a-zA-Z0-9._:-]*$/.test(t);
+}
+
+async function getModel(): Promise<string> {
+  const raw = await resolveEnvString("AEP_DOCS_CHAT_MODEL");
   if (!raw) return DEFAULT_MODEL;
-  if (!/^[a-zA-Z0-9._-]+$/.test(raw)) return DEFAULT_MODEL;
-  return raw;
+  if (!isValidGatewayModelId(raw)) return DEFAULT_MODEL;
+  return raw.trim();
 }
 
 function normalizeMessages(
@@ -58,13 +77,49 @@ function normalizeMessages(
   return out;
 }
 
+function getClientIp(request: Request): string {
+  const cf = request.headers.get("cf-connecting-ip");
+  if (cf) return cf.trim();
+  const xff = request.headers.get("x-forwarded-for");
+  if (xff) {
+    const first = xff.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const real = request.headers.get("x-real-ip");
+  if (real) return real.trim();
+  return "unknown";
+}
+
+async function hashClientKeyForGateway(ip: string): Promise<string> {
+  const data = new TextEncoder().encode(`aep-docs-chat:${ip}`);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 48);
+}
+
 export async function POST(request: Request) {
-  const apiKey = getAnthropicApiKey();
+  const clientIp = getClientIp(request);
+  const upstashUrl = await resolveEnvString("UPSTASH_REDIS_REST_URL");
+  const upstashToken = await resolveEnvString("UPSTASH_REDIS_REST_TOKEN");
+  const rate = await checkDocsChatRateLimit(upstashUrl, upstashToken, clientIp);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      {
+        error:
+          "Too many requests from this network. Wait a minute and try again.",
+      },
+      { status: 429 }
+    );
+  }
+
+  const apiKey = await getGatewayApiKey();
   if (!apiKey) {
     return NextResponse.json(
       {
         error:
-          "The assistant isn’t configured for this deployment. Set ANTHROPIC_API_KEY for the web app.",
+          "The assistant isn’t configured for this deployment. Set AI_GATEWAY_API_KEY for the web app.",
       },
       { status: 503 }
     );
@@ -92,6 +147,38 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     const msg = parsed.error.issues[0]?.message ?? "Invalid request";
     return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  const turnstileSecret = await resolveEnvString("TURNSTILE_SECRET_KEY");
+  if (turnstileSecret) {
+    const token = parsed.data.turnstileToken?.trim();
+    if (!token) {
+      return NextResponse.json(
+        {
+          error:
+            "Verification required. Complete the challenge in the chat panel and try again.",
+        },
+        { status: 400 }
+      );
+    }
+    let turnstileOk = false;
+    try {
+      turnstileOk = await verifyTurnstileToken(turnstileSecret, token);
+    } catch {
+      return NextResponse.json(
+        {
+          error:
+            "Verification service unavailable. Wait a moment and try again.",
+        },
+        { status: 502 }
+      );
+    }
+    if (!turnstileOk) {
+      return NextResponse.json(
+        { error: "Verification failed. Refresh the page and try again." },
+        { status: 400 }
+      );
+    }
   }
 
   const normalized = normalizeMessages(parsed.data.messages);
@@ -133,29 +220,31 @@ ${contextBlock}
 
 Source paths (for your reference): ${sourceList}`;
 
-  const anthropicMessages = messages.map((m) => ({
+  const coreMessages = messages.map((m) => ({
     role: m.role as "user" | "assistant",
     content: m.content,
   }));
 
-  let response: Response;
+  const modelId = await getModel();
+  const gateway = createGateway({ apiKey });
+  const userHash = await hashClientKeyForGateway(clientIp);
+
+  let text: string;
   try {
-    response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": ANTHROPIC_VERSION,
+    const result = await generateText({
+      model: gateway(modelId),
+      system,
+      messages: coreMessages,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+      abortSignal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      providerOptions: {
+        gateway: {
+          user: userHash,
+        } satisfies GatewayLanguageModelOptions,
       },
-      body: JSON.stringify({
-        model: getModel(),
-        max_tokens: MAX_OUTPUT_TOKENS,
-        system,
-        messages: anthropicMessages,
-      }),
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
-  } catch (e) {
+    text = result.text.trim();
+  } catch (e: unknown) {
     const name = e instanceof Error ? e.name : "";
     if (name === "TimeoutError" || name === "AbortError") {
       return NextResponse.json(
@@ -166,16 +255,13 @@ Source paths (for your reference): ${sourceList}`;
         { status: 504 }
       );
     }
-    return NextResponse.json(
-      { error: "Could not reach the assistant service. Try again shortly." },
-      { status: 502 }
-    );
-  }
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => "");
-    const status = response.status;
-    if (status === 429) {
+    const message = e instanceof Error ? e.message : String(e);
+    const lower = message.toLowerCase();
+    if (
+      lower.includes("429") ||
+      lower.includes("rate limit") ||
+      lower.includes("too many requests")
+    ) {
       return NextResponse.json(
         {
           error:
@@ -184,13 +270,18 @@ Source paths (for your reference): ${sourceList}`;
         { status: 429 }
       );
     }
-    if (status === 400 || status === 404) {
+    if (
+      lower.includes("400") ||
+      lower.includes("404") ||
+      lower.includes("not found") ||
+      lower.includes("invalid model")
+    ) {
       return NextResponse.json(
         {
           error: "Assistant configuration error. Check the model id and API key.",
           detail:
             process.env.NODE_ENV === "development"
-              ? errText.slice(0, 500)
+              ? message.slice(0, 500)
               : undefined,
         },
         { status: 502 }
@@ -200,29 +291,11 @@ Source paths (for your reference): ${sourceList}`;
       {
         error: "The assistant request failed. Try again.",
         detail:
-          process.env.NODE_ENV === "development"
-            ? errText.slice(0, 500)
-            : undefined,
+          process.env.NODE_ENV === "development" ? message.slice(0, 500) : undefined,
       },
       { status: 502 }
     );
   }
-
-  let data: AnthropicMessageResponse;
-  try {
-    data = (await response.json()) as AnthropicMessageResponse;
-  } catch {
-    return NextResponse.json(
-      { error: "The assistant returned an invalid response. Try again." },
-      { status: 502 }
-    );
-  }
-
-  const text = data.content
-    .filter((b): b is AnthropicTextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n")
-    .trim();
 
   if (!text) {
     return NextResponse.json(

@@ -54,20 +54,28 @@ No env vars are required for a basic local run (SEO uses `NEXT_PUBLIC_*` or layo
 
 ### Documentation assistant (optional)
 
-The floating **documentation assistant** uses `POST /api/docs-chat`. It answers from the same bundled markdown as this site (retrieval + **Anthropic Claude Haiku**; default model `claude-3-5-haiku-20241022`). It does not query live chain state—only the published docs corpus.
+The floating **documentation assistant** uses `POST /api/docs-chat`. It answers from the same bundled markdown as this site (retrieval + **[Vercel AI Gateway](https://vercel.com/docs/ai-gateway)** and the **AI SDK**; default model **`openai/gpt-4o-mini`**). Usage is billed to your **Vercel team credits** via the gateway. It does not query live chain state—only the published docs corpus.
 
 | Variable | Purpose |
 | -------- | ------- |
-| `ANTHROPIC_API_KEY` | Required for the assistant to run. If unset, the API returns **503** and the UI explains that the feature is not configured. |
-| `AEP_DOCS_CHAT_MODEL` | Optional override for the Messages API model id (default: `claude-3-5-haiku-20241022`). |
-| `NEXT_PUBLIC_AEP_DOCS_CHAT` | Set to `0` or `false` to hide the widget (e.g. forks without an API key). |
+| `AI_GATEWAY_API_KEY` | Required for the assistant to run (create a key under your Vercel team’s AI Gateway). If unset, the API returns **503**. Works on Cloudflare Workers when set as a **runtime** Worker secret. |
+| `AEP_DOCS_CHAT_MODEL` | Optional gateway model id `provider/model` (default: `openai/gpt-4o-mini`). See [AI Gateway models](https://vercel.com/docs/ai-gateway/models). |
+| `NEXT_PUBLIC_AEP_DOCS_CHAT` | Set to `0` or `false` to hide the widget. |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Optional. When both are set, **IP rate limits** apply (~10/min and ~60/hour per client IP) via [@upstash/ratelimit](https://github.com/upstash/ratelimit). If Redis is unreachable or misconfigured, the route **fails open** (allows requests) so the assistant stays available. |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Optional **Cloudflare Turnstile**. When `TURNSTILE_SECRET_KEY` is set, the API requires a verified `turnstileToken` in the JSON body; the widget appears when the site key is set. |
 
-**Limits:** request bodies over **512 KiB** (`Content-Length`) get **413**. The Anthropic request times out after **60s** (**504**). Anthropic **429** is passed through as **429**. For production, add **Cloudflare WAF / rate limiting** in front of the Worker.
+**Limits:** request bodies over **512 KiB** (`Content-Length`) get **413**. The model call times out after **60s** (**504**). Provider **429**-style errors are returned as **429**. Prefer **Cloudflare WAF / rate limiting** on `POST /api/docs-chat` as an extra layer.
 
-**Cloudflare Workers:** set the secret for production:
+**Runtime vs build:** The route reads `AI_GATEWAY_API_KEY` at **request time** (`process.env` or Worker `env` via OpenNext). It must be a **runtime** secret—not only a build variable. [OpenNext env guide](https://opennext.js.org/cloudflare/howtos/env-vars).
+
+**Cloudflare Workers:**
 
 ```bash
-cd packages/web && npx wrangler secret put ANTHROPIC_API_KEY
+cd packages/web && npx wrangler secret put AI_GATEWAY_API_KEY
 ```
 
-Local development: add `ANTHROPIC_API_KEY` to your environment (e.g. shell or a local env file not committed).
+Or set **Variables and Secrets** in the dashboard. Use [`wrangler deploy --keep-vars`](https://developers.cloudflare.com/workers/wrangler/commands/#deploy) when needed so dashboard vars are not dropped.
+
+**Workers Builds:** Put `NEXT_PUBLIC_*` in **Build variables and secrets**; put `AI_GATEWAY_API_KEY`, Upstash, and Turnstile secrets in **runtime** for the Worker.
+
+Local development: set `AI_GATEWAY_API_KEY` in `.env` (not committed). Vercel-hosted deploys can use [OIDC / keyless](https://vercel.com/docs/ai-gateway/authentication) for the gateway; Cloudflare should use an explicit **`AI_GATEWAY_API_KEY`**.
