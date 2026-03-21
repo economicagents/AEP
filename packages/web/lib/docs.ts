@@ -64,12 +64,15 @@ const SLUG_TO_FILE: Record<string, string> = {
   "guides/deployment": "guides/deployment.md",
   "guides/integration": "guides/integration.md",
   "guides/monetization": "guides/monetization.md",
+  "guides/cookbook": "COOKBOOK.md",
   // Reference
   "reference/rest-api": "reference/rest-api.md",
   "reference/mcp": "reference/mcp.md",
   "reference/intent-schema": "reference/intent-schema.md",
   "reference/architecture": "ARCHITECTURE.md",
   "reference/threat-model": "THREAT-MODEL.md",
+  "reference/document-map": "DOCUMENT-MAP.md",
+  "reference/backlog": "BACKLOG.md",
 };
 
 export const SLUG_TO_TITLE: Record<string, string> = {
@@ -92,11 +95,14 @@ export const SLUG_TO_TITLE: Record<string, string> = {
   "guides/deployment": "Deployment",
   "guides/integration": "Integration",
   "guides/monetization": "Monetization",
+  "guides/cookbook": "Cookbook",
   "reference/rest-api": "REST API",
   "reference/mcp": "MCP Tools",
   "reference/intent-schema": "Intent Schema",
   "reference/architecture": "Architecture",
   "reference/threat-model": "Threat Model",
+  "reference/document-map": "Document Map",
+  "reference/backlog": "Backlog",
   // Skills (dynamic)
   "skills/aep-budget": "Budget",
   "skills/aep-rate-limit": "Rate Limit",
@@ -167,7 +173,7 @@ export function resolveDocHref(href: string): string {
   // Map legacy flat slugs to new paths
   const legacyMap: Record<string, string> = {
     quickstart: "getting-started/quickstart",
-    cookbook: "guides/integration",
+    cookbook: "guides/cookbook",
     deployment: "guides/deployment",
     architecture: "reference/architecture",
     "threat-model": "reference/threat-model",

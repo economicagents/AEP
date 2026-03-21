@@ -78,6 +78,7 @@ export const DOC_NAV: NavSection[] = [
     label: "Guides",
     href: "/docs/guides/deployment",
     items: [
+      { href: "/docs/guides/cookbook", label: "Cookbook" },
       { href: "/docs/guides/deployment", label: "Deployment" },
       { href: "/docs/guides/integration", label: "Integration" },
       { href: "/docs/guides/monetization", label: "Monetization" },
@@ -92,6 +93,8 @@ export const DOC_NAV: NavSection[] = [
       { href: "/docs/reference/intent-schema", label: "Intent Schema" },
       { href: "/docs/reference/architecture", label: "Architecture" },
       { href: "/docs/reference/threat-model", label: "Threat Model" },
+      { href: "/docs/reference/document-map", label: "Document Map" },
+      { href: "/docs/reference/backlog", label: "Backlog" },
     ],
   },
 ];

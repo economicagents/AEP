@@ -39,6 +39,9 @@
   --docs-border-subtle: rgba(37, 39, 59, 0.08);
   --docs-bg-subtle: rgba(37, 39, 59, 0.04);
   --docs-shadow: rgba(37, 39, 59, 0.06);
+  /* Docs assistant — semantic error (WCAG-friendly on cream bg) */
+  --docs-chat-error: #b91c1c;
+  --docs-chat-error-surface: rgba(185, 28, 28, 0.08);
   /* Landing micro-interactions */
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --landing-duration: 200ms;
@@ -73,6 +76,8 @@ html[data-theme="dark"] {
   --docs-border-subtle: rgba(255, 255, 255, 0.08);
   --docs-bg-subtle: rgba(255, 255, 255, 0.04);
   --docs-shadow: rgba(0, 0, 0, 0.2);
+  --docs-chat-error: #f87171;
+  --docs-chat-error-surface: rgba(248, 113, 113, 0.12);
 }
 
 * {
@@ -631,6 +636,118 @@ html[data-theme="dark"] .prose .markdown-alert-important {
 
 [data-theme="dark"] .border-divider {
   border-top-color: rgba(250, 248, 243, 0.1);
+}
+
+/* Docs assistant — panel entrance, focus ring, error surface (widget in layout.tsx) */
+@media (prefers-reduced-motion: no-preference) {
+  .docs-chat-panel-enter {
+    animation: docs-chat-panel-in var(--landing-duration) var(--ease-out-quart) both;
+  }
+}
+@keyframes docs-chat-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Docs chat — minimal chrome: no stacked “ring” borders; soft shadow + thin outline focus */
+.docs-chat-panel {
+  border: none;
+  box-shadow:
+    0 4px 6px -1px rgba(37, 39, 59, 0.06),
+    0 20px 50px -12px rgba(37, 39, 59, 0.14);
+}
+html[data-theme="dark"] .docs-chat-panel {
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    0 24px 56px -12px rgba(0, 0, 0, 0.45);
+}
+
+.docs-chat-fab {
+  border: none;
+  transition: box-shadow var(--landing-duration) var(--ease-out-quart), transform 0.1s ease;
+  box-shadow:
+    0 4px 14px rgba(37, 39, 59, 0.1),
+    0 12px 28px rgba(37, 39, 59, 0.08);
+}
+html[data-theme="dark"] .docs-chat-fab {
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.25),
+    0 12px 28px rgba(0, 0, 0, 0.35);
+}
+.docs-chat-fab:hover:not(:disabled) {
+  box-shadow:
+    0 6px 20px rgba(37, 39, 59, 0.12),
+    0 16px 36px rgba(37, 39, 59, 0.1);
+  transform: none;
+}
+html[data-theme="dark"] .docs-chat-fab:hover:not(:disabled) {
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.3),
+    0 16px 40px rgba(0, 0, 0, 0.4);
+}
+.docs-chat-close:hover:not(:disabled) {
+  transform: none;
+}
+
+.docs-chat-head {
+  border-bottom: 1px solid var(--docs-border-subtle);
+}
+
+.docs-chat-foot {
+  border-top: 1px solid var(--docs-border-subtle);
+}
+
+.docs-chat-input {
+  border: none;
+  background: var(--docs-bg-subtle);
+}
+
+.docs-chat-fab:focus-visible,
+.docs-chat-close:focus-visible,
+.docs-chat-send:focus-visible,
+.docs-chat-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.docs-chat-input:focus-visible {
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .docs-chat-fab .docs-chat-fab-icon {
+    transition: transform 0.22s var(--ease-out-quart);
+  }
+  .docs-chat-fab[aria-expanded="true"] .docs-chat-fab-icon {
+    transform: rotate(-8deg) scale(1.04);
+  }
+}
+
+.docs-chat-error {
+  color: var(--docs-chat-error);
+  background: var(--docs-chat-error-surface);
+  border: none;
+  border-radius: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.docs-chat-md.prose a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 0.125rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-chat-loading {
+    animation: none !important;
+  }
 }
 
 /* Header logo: light green/cream; dark navy/cream — same Bayer layout */

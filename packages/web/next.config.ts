@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/llm.txt", destination: "/llms.txt", permanent: true },
       { source: "/docs/quickstart", destination: "/docs/getting-started/quickstart", permanent: true },
-      { source: "/docs/cookbook", destination: "/docs/guides/integration", permanent: true },
+      { source: "/docs/cookbook", destination: "/docs/guides/cookbook", permanent: true },
       { source: "/docs/deployment", destination: "/docs/guides/deployment", permanent: true },
       { source: "/docs/architecture", destination: "/docs/reference/architecture", permanent: true },
       { source: "/docs/threat-model", destination: "/docs/reference/threat-model", permanent: true },

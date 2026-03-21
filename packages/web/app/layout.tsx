@@ -3,6 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { HeaderBar } from "@/components/HeaderBar";
+import { DocsChatWidget } from "@/components/DocsChatWidget";
 import { GITHUB_REPO } from "@/lib/github";
 
 const BASE_URL = "https://economicagents.org";
@@ -112,6 +113,7 @@ export default function RootLayout({
         <ThemeProvider>
           <HeaderBar />
           {children}
+          <DocsChatWidget />
         </ThemeProvider>
       </body>
     </html>

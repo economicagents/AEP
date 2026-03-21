@@ -31,6 +31,10 @@ const SLUG_TO_FILE: Record<string, string> = {
   "reference/intent-schema": "reference/intent-schema.md",
   "reference/architecture": "ARCHITECTURE.md",
   "reference/threat-model": "THREAT-MODEL.md",
+  /** Consolidated reference — high value for docs chat grounding */
+  "guides/cookbook": "COOKBOOK.md",
+  "reference/document-map": "DOCUMENT-MAP.md",
+  "reference/backlog": "BACKLOG.md",
 };
 
 const SKILL_NAMES = [
