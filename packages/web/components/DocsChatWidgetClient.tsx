@@ -420,7 +420,7 @@ function DocsChatWidgetInner() {
           id={panelId}
           role="dialog"
           aria-modal="true"
-          aria-label="AEP documentation assistant"
+          aria-label="AEP docs assistant"
           className="docs-chat-panel docs-chat-panel-enter pointer-events-auto flex w-[min(100vw-1.25rem,26rem)] sm:w-[min(100vw-2rem,28rem)] max-h-[min(32rem,75dvh)] flex-col overflow-hidden rounded-2xl"
           style={{
             backgroundColor: "var(--background)",
@@ -436,7 +436,7 @@ function DocsChatWidgetInner() {
                 className="font-semibold leading-tight tracking-tight"
                 style={{ fontSize: "var(--text-sm)" }}
               >
-                Documentation assistant
+                Docs assistant
               </p>
               <p
                 className="mt-1 leading-snug"
@@ -446,7 +446,7 @@ function DocsChatWidgetInner() {
                   opacity: 0.65,
                 }}
               >
-                Grounded in this site’s AEP docs—not live on-chain data.
+                Published docs only—not live chain or wallets.
               </p>
             </div>
             <button
@@ -477,8 +477,7 @@ function DocsChatWidgetInner() {
                   opacity: 0.75,
                 }}
               >
-                Ask about setup, architecture, the CLI, or deployment. Answers cite
-                this documentation; they do not query wallets or chain state.
+                Ask about setup, CLI, architecture, or deployment.
               </p>
             )}
             {messages.map((m) => (
@@ -577,7 +576,7 @@ function DocsChatWidgetInner() {
         onClick={toggleOpen}
         className="docs-chat-fab pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full combo-1 touch-manipulation min-h-[56px] min-w-[56px]"
         aria-label={
-          open ? "Close documentation assistant" : "Open documentation assistant"
+          open ? "Close docs assistant" : "Open docs assistant"
         }
       >
         <ChatBubbleIcon className="h-6 w-6 docs-chat-fab-icon" />

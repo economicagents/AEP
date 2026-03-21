@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DocSidebar } from "@/components/docs/DocSidebar";
 import { DocBreadcrumb } from "@/components/docs/DocBreadcrumb";
+import { DocsChatWidget } from "@/components/DocsChatWidget";
 
 /** Header height for docs layout (matches HeaderBar). */
 const HEADER_HEIGHT = "3.5rem";
@@ -11,6 +12,7 @@ export default function DocsLayout({
   children: React.ReactNode;
 }) {
   return (
+    <>
     <div
       className="flex justify-center overflow-hidden"
       style={{
@@ -56,5 +58,7 @@ export default function DocsLayout({
         </main>
       </div>
     </div>
+    <DocsChatWidget />
+    </>
   );
 }
