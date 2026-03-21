@@ -96,6 +96,22 @@ This document describes the attack surfaces and mitigations for the Agent Econom
 - Document sync frequency; run `aep-index sync` periodically.
 - Reputation and validation filters reduce impact of malicious providers.
 - Optional x402 probe validates endpoint exists and records price.
+- When using **PostgreSQL** for the search index, each successful sync removes `provider_search` rows for agents no longer present in the synced provider set (per `dataset_id`), reducing ghost results from stale DB state.
+
+### 6a. Optional PostgreSQL index (`pgvector`)
+
+**Description:** When `AEP_INDEX_DATABASE_URL` or `indexDatabaseUrl` in `~/.aep/config.json` is set, the indexer stores hybrid lexical + optional vector search data in PostgreSQL (with the **pgvector** extension). This path is **optional**; without it, search uses local JSON + optional SQLite.
+
+**Vectors:**
+- **Connection string exposure** (environment variable, config file, CI logs) allows read/write of indexed provider metadata used for discovery—not on-chain funds, but integrity and privacy of off-chain index data.
+- **`OPENAI_API_KEY`** used for batch embeddings (`aep-index embed`) and for query-time hybrid search when the key is set: key leakage enables API abuse (billing) and must follow the provider’s data-handling terms.
+- **Network exposure:** PostgreSQL reachable from the public internet (e.g. port 5432 on `0.0.0.0`) increases credential-sniffing and brute-force risk.
+
+**Mitigations:**
+- Treat the database URL and `OPENAI_API_KEY` as **secrets**; do not log connection strings or keys.
+- Bind PostgreSQL to **localhost** or a **private network**; use TLS or a VPN/tunnel for remote access. See [`packages/indexer/docker/README.md`](../packages/indexer/docker/README.md).
+- Understand that index compromise primarily affects **discovery quality and privacy of indexed metadata**, not smart account custody.
+- If query-time embedding fails (rate limit, outage), search **degrades to lexical-only** and logs a warning—operators should monitor logs for sustained failures.
 
 ### 7. Upgrade and Governance
 
@@ -152,6 +168,7 @@ For Conditional Escrow and SLA Contract: use reputable validators. Consider mult
 - [ ] Counterparty allow/block lists and min-reputation (if used) reviewed
 - [ ] Rate limit configured for expected transaction volume
 - [ ] Provider index synced regularly (intent resolution)
+- [ ] If using PostgreSQL for the index: DB URL and `OPENAI_API_KEY` protected; Postgres not exposed to the public internet
 - [ ] Path configs (indexPath, graphPath, statePath) use safe paths; no `..` or null bytes
 - [ ] Credit facility reputation and identity registries configured
 - [ ] Escrow validator address trusted
