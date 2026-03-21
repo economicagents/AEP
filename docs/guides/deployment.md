@@ -240,10 +240,15 @@ pnpm exec aep config validate
 
 ### Indexer (intent resolution / `aep resolve` / POST /resolve)
 
+**Default:** local `~/.aep/index/` with `providers.json` and optional SQLite `search.db` (BM25).
+
+**Optional — PostgreSQL + pgvector** (hybrid lexical + vector search): run Postgres (e.g. `packages/indexer/docker/` Compose), set `AEP_INDEX_DATABASE_URL` (or `indexDatabaseUrl` in `~/.aep/config.json`). Set `OPENAI_API_KEY` on the host for `embed` and query-time hybrid search; without it, lexical search only. Do not expose Postgres to the public internet (bind to localhost or a private network).
+
 ```bash
 cd packages/indexer && pnpm run build
+node dist/cli.js migrate                       # once when using Postgres
 node dist/cli.js sync --probe-x402
-node dist/cli.js embed                         # after sync
+node dist/cli.js embed                         # PG: vectors when OPENAI_API_KEY set; SQLite: FTS rebuild
 ```
 
 ### Graph (analytics, credit score, recommendations)

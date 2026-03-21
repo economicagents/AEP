@@ -16,7 +16,9 @@ Single reference for AEP deployment, policies, integration, and operations. For 
 5. **Optional — intent resolution:** `cd packages/indexer && pnpm run build && node dist/cli.js sync` (index at `~/.aep/index/`)
 6. **Optional — API:** `cd packages/api && pnpm run build && node dist/index.js` (POST /resolve on port 3847)
 
-**Full config** (`~/.aep/config.json`): `factoryAddress`, `rpcUrl`, `account` (from deploy); for counterparty: `identityRegistryAddress`, `reputationRegistryAddress`; for execute: `bundlerRpcUrl`; for resolve: `indexPath`; for relationships: `creditFacilityFactoryAddress`, `escrowFactoryAddress`, `revenueSplitterFactoryAddress`, `slaFactoryAddress`; for monitor: `monitor.accounts`, `monitor.facilities`, `monitor.slas`, `monitor.webhookUrl`, `monitor.pollIntervalMs`; for fleet: `fleets`.
+**Full config** (`~/.aep/config.json`): `factoryAddress`, `rpcUrl`, `account` (from deploy); for counterparty: `identityRegistryAddress`, `reputationRegistryAddress`; for execute: `bundlerRpcUrl`; for resolve: `indexPath`; optional **`indexDatabaseUrl`** — PostgreSQL URL for hybrid provider search (overridden by env `AEP_INDEX_DATABASE_URL` when set); for relationships: `creditFacilityFactoryAddress`, `escrowFactoryAddress`, `revenueSplitterFactoryAddress`, `slaFactoryAddress`; for monitor: `monitor.accounts`, `monitor.facilities`, `monitor.slas`, `monitor.webhookUrl`, `monitor.pollIntervalMs`; for fleet: `fleets`.
+
+**Provider index (Postgres optional):** With `AEP_INDEX_DATABASE_URL` or `indexDatabaseUrl`, run `aep-index migrate` once, then `sync` and `embed`. Vector hybrid search uses OpenAI (`OPENAI_API_KEY`, optional `AEP_EMBEDDING_MODEL`). Without a DB URL, the index stays in `~/.aep/index/` (`providers.json` + optional SQLite `search.db`). Optional namespace: `AEP_INDEX_DATASET_ID`.
 
 ---
 

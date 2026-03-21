@@ -1,7 +1,7 @@
 ---
 name: aep-indexer
 description: AEP provider index: sync ERC-8004 providers, BM25 and vector search for intent resolution. Use when setting up intent resolution, syncing index, provider crawl, capability search, running aep-index sync/embed, or probing provider x402 endpoints.
-compatibility: Requires Node.js. Run from packages/indexer or install @economicagents/indexer. Optional better-sqlite3, sqlite-vec for vector search.
+compatibility: Requires Node.js. Run from packages/indexer or install @economicagents/indexer. Optional SQLite (better-sqlite3) or PostgreSQL + pgvector via AEP_INDEX_DATABASE_URL / indexDatabaseUrl; OpenAI key for hybrid embeddings.
 metadata:
   version: 1.0.0
   openclaw:
@@ -36,13 +36,21 @@ node dist/cli.js sync [--rpc <url>] [--index-path <path>] [--probe-x402]
 
 Index stored at `~/.aep/index/` by default.
 
-## Embed (vector search)
+## Migrate (PostgreSQL only)
+
+```bash
+node dist/cli.js migrate
+```
+
+Requires `AEP_INDEX_DATABASE_URL` or `indexDatabaseUrl` in `~/.aep/config.json`. Run once before sync when using Postgres + pgvector.
+
+## Embed (vectors + FTS)
 
 ```bash
 node dist/cli.js embed [--index-path <path>]
 ```
 
-Adds vector embeddings for hybrid BM25 + vector search.
+With **PostgreSQL**: fills `OPENAI_API_KEY` embeddings for hybrid lexical + vector search. With **SQLite only**: rebuilds FTS5 (`search.db`).
 
 ## Provider Probe
 
@@ -60,7 +68,8 @@ Index sync with `--probe-x402` probes providers during crawl and updates uptime/
 
 ## Dependencies
 
-Optional: `better-sqlite3` (v12+), `sqlite-vec`. Falls back to legacy keyword discovery if unavailable.
+- **Default:** optional `better-sqlite3` (v12+). Without DB URL and without SQLite, legacy keyword discovery.
+- **Postgres path:** `pg` (bundled), pgvector-enabled server, `OPENAI_API_KEY` for hybrid search.
 
 ## Install note
 

@@ -63,7 +63,7 @@ AEP intercepts before signing: `intercept402Response` parses headers, calls `che
 
 ## MCP Server
 
-Exposes `get_balance`, `get_policy_state`, `set_budget_caps`, and `resolve_intent` as MCP tools for agent frameworks.
+Exposes tools for agent frameworks including budget/policy (`get_balance`, `get_policy_state`, `set_budget_caps`), `resolve_intent`, analytics, fleet, and relationship state. See [reference/mcp.md](reference/mcp.md) for the full list.
 
 ## Monetization
 

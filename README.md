@@ -80,7 +80,7 @@ AEP/
 
 - **Node.js** 18+
 - **Foundry** (forge, anvil)
-- **Indexer (optional):** For BM25 search, `better-sqlite3` (v12+) is an optional dep with prebuilt binaries for Node 18–24. If unavailable, the indexer falls back to legacy keyword discovery. `sqlite-vec` is optional for future vector search.
+- **Indexer (optional):** Default search uses local JSON + optional SQLite FTS5 (`better-sqlite3` v12+). For PostgreSQL + pgvector, set `AEP_INDEX_DATABASE_URL` (or `indexDatabaseUrl` in config), run `aep-index migrate`, then `sync` / `embed` with `OPENAI_API_KEY` for hybrid search. If SQLite is unavailable and no DB URL is set, discovery falls back to legacy keyword discovery.
 
 ### Build & Test
 
@@ -274,7 +274,7 @@ const hash = await execute(
 | **Intent Resolution** | **Complete** |
 | | Intent schema (JSON, Zod) | ✅ |
 | | Provider index (ERC-8004 crawl, reputation, x402 probe) | ✅ |
-| | Hybrid capability search (BM25 + optional vector, RRF fusion) | ✅ |
+| | Hybrid capability search (SQLite BM25 or Postgres `tsvector` + optional pgvector, RRF fusion) | ✅ |
 | | Resolver (discover, filter, score, plan) | ✅ |
 | | MCP resolve_intent | ✅ |
 | | CLI aep resolve | ✅ |
@@ -307,14 +307,14 @@ Revenue streams: managed resolution API (x402 paywall), credit origination fees,
 
 ## Deferred & Limitations
 
-- **Deferred:** PostgreSQL/pgvector (index uses local JSON + SQLite); Python SDK; continuous provider health monitor (on-demand probe only); operator/session keys.
-- **Limitations:** Indexer optional deps (`better-sqlite3`, `sqlite-vec`) fall back to legacy keyword discovery if unavailable. See [Backlog](docs/BACKLOG.md).
+- **Deferred:** Python SDK; continuous provider health monitor (on-demand probe only); operator/session keys.
+- **Limitations:** Optional Postgres + pgvector for hosted index search (`AEP_INDEX_DATABASE_URL` or `indexDatabaseUrl` in config); else local JSON + optional SQLite. See [Backlog](docs/BACKLOG.md) and [Cookbook](docs/COOKBOOK.md).
 
 ---
 
 ## Testing
 
-- **Contracts:** 140 Foundry tests across 11 suites (AEPAccount, BudgetPolicy, CounterpartyPolicy, RateLimitPolicy, PaymentDecoder, PolicyRegistry, CreditFacility, ConditionalEscrow, RevenueSplitter, SLAContract, invariant)
+- **Contracts:** Foundry tests across 15 suites (AEPAccount, BudgetPolicy, CounterpartyPolicy, RateLimitPolicy, PaymentDecoder, PolicyRegistry, CreditFacility, ConditionalEscrow, RevenueSplitter, SLAContract, factories, invariant, fork); run `cd contracts && forge test` for current count
 - **SDK:** Vitest tests for x402 interceptor (`pnpm run test` in packages/sdk)
 - **Indexer:** Vitest tests for search-store (`pnpm run test` in packages/indexer)
 - **Resolver:** Vitest tests for discover (`pnpm run test` in packages/resolver)

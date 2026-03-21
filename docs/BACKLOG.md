@@ -8,7 +8,6 @@ Known **gaps** and **not-yet-built** items so you can plan integrations and audi
 
 ## Deferred
 
-- **PostgreSQL + pgvector:** Index uses local JSON store + SQLite `search.db`.
 - **Python SDK:** TypeScript SDK is the supported path.
 - **Continuous provider health monitor:** On-demand probe only (CLI + API); no 24/7 daemon.
 - **Operator / session keys:** Owner-only path implemented; broader delegation [documented](THREAT-MODEL.md) but not built.
@@ -22,7 +21,7 @@ Known **gaps** and **not-yet-built** items so you can plan integrations and audi
 
 - **Policy module interface:** Spec-style `lastRejectionReason()` on `IPolicyModule` differs from shipped feedback via SDK `checkPolicyDetailed` / `PolicyCheckResult`. Behavior is covered; the interface shape differs.
 - **`aep resolve --api-url`:** Does not auto-complete x402 payment; HTTP 402 requires a payment flow or x402-aware client.
-- **Indexer:** `better-sqlite3` (v12+) and `sqlite-vec` are optional. If missing, resolver falls back to legacy keyword discovery.
+- **Indexer:** Without `AEP_INDEX_DATABASE_URL` (or `indexDatabaseUrl` in config), search uses optional `better-sqlite3` + SQLite `search.db`. If SQLite is unavailable, resolver falls back to legacy keyword discovery. With Postgres + pgvector, set `OPENAI_API_KEY` for hybrid vector search; without it, lexical search only.
 - **CreditFacility `declareDefault`:** Lender-only; not permissionless after the deadline.
 - **Intent resolution & MEV:** Choosing a provider is visible; no protocol-level private-order-flow or encrypted intents.
 
