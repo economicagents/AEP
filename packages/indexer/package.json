@@ -28,6 +28,7 @@
   "dependencies": {
     "@economicagents/sdk": "workspace:*",
     "@economicagents/viem-rpc": "workspace:*",
+    "pg": "^8.13.1",
     "viem": "^2.21.0"
   },
   "optionalDependencies": {
@@ -36,10 +37,12 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
+    "@types/pg": "^8.11.10",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
   },
   "files": [
-    "dist"
+    "dist",
+    "migrations"
   ]
 }

@@ -297,5 +297,9 @@ export {
   searchIndexExists,
   writeEmbeddings,
 } from "./search-store.js";
-export type { SearchResult } from "./search-store.js";
+export type { SearchResult } from "./search-result.js";
+export { embedProviders } from "./embed.js";
+export { ensureMigrated } from "./pg/migrate.js";
+export { closePgPool, getPgPool } from "./pg/pool.js";
+export { getIndexDatabaseUrl, resetIndexDatabaseUrlCache } from "./pg-config.js";
 export type { IndexConfig, IndexedProvider, IndexState, SyncCheckpoint } from "./types.js";

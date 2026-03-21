@@ -91,7 +91,7 @@ describe("search-store", () => {
     if (isSqliteAvailable()) {
       expect(exists).toBe(true);
     }
-    expect(hasVectorIndex(tmpDir)).toBe(false);
+    expect(await hasVectorIndex(tmpDir)).toBe(false);
   });
 
   it("searchByCapability returns BM25 results when sqlite available", async () => {
@@ -109,6 +109,13 @@ describe("search-store", () => {
 
   it("searchByCapability returns empty when no index", async () => {
     const result = await searchByCapability(tmpDir, "image classification");
+    expect(result.agentIds).toEqual([]);
+    expect(result.scores).toEqual([]);
+  });
+
+  it("searchByCapability returns empty for blank capability", async () => {
+    await buildSearchIndex(tmpDir, MOCK_PROVIDERS);
+    const result = await searchByCapability(tmpDir, "   ");
     expect(result.agentIds).toEqual([]);
     expect(result.scores).toEqual([]);
   });

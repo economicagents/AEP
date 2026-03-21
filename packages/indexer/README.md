@@ -1,6 +1,6 @@
 # @economicagents/indexer
 
-Provider discovery for AEP intent resolution: crawl ERC-8004 registries, index capabilities and pricing, optional BM25 / vector search.
+Provider discovery for AEP intent resolution: crawl ERC-8004 registries, index capabilities and pricing, optional **SQLite FTS5** or **PostgreSQL + pgvector** hybrid search.
 
 ## Install
 
@@ -18,23 +18,38 @@ The **`aep-index`** CLI is available when installed globally or via `pnpm exec`.
 # When package is on PATH
 aep-index sync [--rpc <url>] [--probe-x402]
 aep-index embed
+aep-index migrate   # when using PostgreSQL (see below)
 
 # From packages/indexer after build
 node dist/cli.js sync [--probe-x402]
 node dist/cli.js embed
+node dist/cli.js migrate
 ```
 
 Default index path: `~/.aep/index/`. Consumed by `@economicagents/resolver`, REST `POST /resolve`, MCP `resolve_intent`, and `aep resolve`.
 
+## PostgreSQL + pgvector (optional)
+
+For hosted or high-scale search, run Postgres with the **pgvector** extension (see `docker/docker-compose.yml`).
+
+1. Set **`AEP_INDEX_DATABASE_URL`** (or **`indexDatabaseUrl`** in `~/.aep/config.json`).
+2. Run **`aep-index migrate`** once to apply SQL migrations from `migrations/`.
+3. Run **`aep-index sync`** then **`aep-index embed`**.
+4. Set **`OPENAI_API_KEY`** for embeddings (`embed`) and for **hybrid** lexical + vector search at query time. Without the key, search uses **lexical** (`tsvector`) only.
+
+Optional: **`AEP_EMBEDDING_MODEL`** (default `text-embedding-3-small`), **`AEP_INDEX_DATASET_ID`** (override dataset namespace).
+
 ## Configuration
 
-- **RPC:** `--rpc <url>` or `RPC_URL` env
+- **RPC:** `--rpc <url>` or config / `AEP_RPC_URL`
 - **Chain:** `AEP_CHAIN_ID` (default: 84532 Base Sepolia)
-- **Config:** `~/.aep/config.json` (`indexPath` overrides default location)
+- **Config:** `~/.aep/config.json` (`indexPath` overrides default index directory)
+- **DB:** `AEP_INDEX_DATABASE_URL` or `indexDatabaseUrl` in config
 
 ## Dependencies
 
-Optional: `better-sqlite3` (v12+), `sqlite-vec`. Without them, discovery falls back to legacy keyword search.
+- **PostgreSQL:** runtime dependency `pg` when using the DB URL (migrations ship in the published package under `migrations/`).
+- **SQLite path:** optional `better-sqlite3` (v12+), `sqlite-vec`. Without them when no DB URL is set, discovery falls back to legacy keyword search.
 
 ## Build & test
 

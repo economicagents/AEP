@@ -11,6 +11,9 @@ import { existsSync, readFileSync } from "fs";
 import { rejectPathTraversal } from "@economicagents/sdk";
 import { syncIndex } from "./index.js";
 import { embedProviders } from "./embed.js";
+import { getIndexDatabaseUrl } from "./pg-config.js";
+import { closePgPool, getPgPool } from "./pg/pool.js";
+import { ensureMigrated } from "./pg/migrate.js";
 import type { Address } from "viem";
 
 function getConfigPath(): string {
@@ -59,6 +62,23 @@ async function main() {
   const command = args[0] ?? "sync";
   const config = loadConfig();
 
+  if (command === "migrate") {
+    if (!getIndexDatabaseUrl()) {
+      console.error("Error: set AEP_INDEX_DATABASE_URL or indexDatabaseUrl in config to run migrations");
+      process.exit(1);
+    }
+    try {
+      const pool = getPgPool();
+      await ensureMigrated(pool);
+      await closePgPool();
+      console.log("Migrations applied.");
+    } catch (err) {
+      console.error("Error:", err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+    return;
+  }
+
   if (command === "embed") {
     const indexPath = getIndexPath(args, config);
     if (rejectPathTraversal(indexPath)) {
@@ -76,9 +96,10 @@ async function main() {
   }
 
   if (command !== "sync") {
-    console.error("Usage: aep-index <sync|embed> [options]");
-    console.error("  sync  [--rpc <url>] [--index-path <path>] [--chain-id <id>] [--probe-x402]");
-    console.error("  embed [--index-path <path>]");
+    console.error("Usage: aep-index <sync|embed|migrate> [options]");
+    console.error("  sync    [--rpc <url>] [--index-path <path>] [--chain-id <id>] [--probe-x402]");
+    console.error("  embed   [--index-path <path>]");
+    console.error("  migrate  (requires DB URL: env or config indexDatabaseUrl)");
     process.exit(1);
   }
 
