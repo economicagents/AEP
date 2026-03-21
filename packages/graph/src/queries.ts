@@ -59,7 +59,7 @@ export function getBlockRangeForPeriod(
 ): { fromBlock: number; toBlock: number } | null {
   const blocks = BLOCKS_PER_PERIOD[period];
   if (!blocks) return null;
-  const db = getDatabase(graphPath);
+  const db = getDatabase(graphPath, { readonly: true });
   const maxBlock = getMaxBlock(db);
   return { fromBlock: Math.max(0, maxBlock - blocks), toBlock: maxBlock };
 }
@@ -92,7 +92,7 @@ export function getAccountAnalytics(
   graphPath: string,
   address: string
 ): AccountAnalytics | null {
-  const db = getDatabase(graphPath);
+  const db = getDatabase(graphPath, { readonly: true });
   const addr = address.toLowerCase();
 
   const outflows = db
@@ -166,7 +166,7 @@ export function computeCreditScore(
   graphPath: string,
   address: string
 ): CreditScoreResult {
-  const db = getDatabase(graphPath);
+  const db = getDatabase(graphPath, { readonly: true });
   const addr = address.toLowerCase();
 
   const outflows = getPaymentsFrom(db, addr);
@@ -223,7 +223,7 @@ export function computeCreditScoreInRange(
   fromBlock: number,
   toBlock: number
 ): CreditScoreResult {
-  const db = getDatabase(graphPath);
+  const db = getDatabase(graphPath, { readonly: true });
   const addr = address.toLowerCase();
 
   const outflows = db
@@ -289,7 +289,7 @@ export function getAccountAnalyticsInRange(
   fromBlock: number,
   toBlock: number
 ): AccountAnalytics | null {
-  const db = getDatabase(graphPath);
+  const db = getDatabase(graphPath, { readonly: true });
   const addr = address.toLowerCase();
 
   const outflows = db
@@ -370,7 +370,7 @@ export function getPaymentTrends(
   address: string,
   period: "7d" | "30d" | "90d"
 ): PaymentTrend[] {
-  const db = getDatabase(graphPath);
+  const db = getDatabase(graphPath, { readonly: true });
   const addr = address.toLowerCase();
   const maxBlock = getMaxBlock(db);
   const blocks = BLOCKS_PER_PERIOD[period] ?? BLOCKS_PER_PERIOD["30d"];
@@ -425,7 +425,7 @@ export function exportPaymentsCsv(
   fromBlock?: number,
   toBlock?: number
 ): string {
-  const db = getDatabase(graphPath);
+  const db = getDatabase(graphPath, { readonly: true });
   const addr = address.toLowerCase();
   let sql =
     "SELECT fromAddr, toAddr, amount, token, blockNumber, txHash, source FROM payments WHERE (fromAddr = ? OR toAddr = ?)";
@@ -483,7 +483,7 @@ export function getFleetSummary(
   graphPath: string,
   accountAddresses: string[]
 ): FleetSummary {
-  const db = getDatabase(graphPath);
+  const db = getDatabase(graphPath, { readonly: true });
   const normalized = accountAddresses.map((a) => a.toLowerCase());
   let totalOutflow = 0n;
   let totalInflow = 0n;

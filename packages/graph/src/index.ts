@@ -639,6 +639,7 @@ export type {
   SyncResult,
   PaymentSource,
 } from "./types.js";
+export type { GraphDatabaseOptions } from "./store.js";
 export type {
   PaymentRow,
   AccountAnalytics,

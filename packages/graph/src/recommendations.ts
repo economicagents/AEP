@@ -36,7 +36,7 @@ export function getRecommendations(
   capability?: string,
   limit = 5
 ): ProviderRecommendation[] {
-  const db = getDatabase(graphPath);
+  const db = getDatabase(graphPath, { readonly: true });
   const addr = accountAddress.toLowerCase();
 
   const paymentWalletToProvider = new Map<string, ProviderInfo>();

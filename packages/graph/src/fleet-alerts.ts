@@ -46,7 +46,7 @@ export async function getFleetAlerts(
     throw new Error("getFleetAlerts requires a non-empty rpcUrl");
   }
 
-  const db = getDatabase(graphPath);
+  const db = getDatabase(graphPath, { readonly: true });
 
   // 1. Facilities where lender or borrower in fleet accounts
   const facilityAddresses: string[] = [];

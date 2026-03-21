@@ -34,8 +34,16 @@ type SqlJsNativeDb = {
 
 let db: SqliteDb | null = null;
 let dbPath: string | null = null;
+/** Read-only handle (API analytics) — avoids write locks vs graph sync in a second process */
+let roDb: SqliteDb | null = null;
+let roDbPath: string | null = null;
 let sqliteAvailable: boolean | null = null;
 let sqlJsFallback: { Database: new () => SqlJsNativeDb } | null = null;
+
+/** better-sqlite3 only — WAL + busy_timeout reduce lock errors when aep-api and graph sync share graph.db */
+type BetterSqlite3Handle = SqliteDb & { pragma: (statement: string) => unknown };
+
+const GRAPH_SQLITE_BUSY_TIMEOUT_MS = 30_000;
 
 /** For tests: set sql.js as fallback when better-sqlite3 native bindings are unavailable. */
 export function setSqlJsFallback(SQL: { Database: new () => SqlJsNativeDb }): void {
@@ -101,14 +109,35 @@ export function isSqliteAvailable(): boolean {
   return sqlJsFallback !== null;
 }
 
-function getDb(graphPath: string): SqliteDb {
+export type GraphDatabaseOptions = {
+  /** Use read-only mode (API / analytics). Lets graph sync hold the write lock without SQLITE_BUSY. */
+  readonly?: boolean;
+};
+
+function getDb(graphPath: string, options?: GraphDatabaseOptions): SqliteDb {
+  const wantsReadonly = options?.readonly === true;
+  /** sql.js tests use one in-memory DB; read-only file semantics do not apply */
+  isSqliteAvailable();
+  const readonly =
+    wantsReadonly && sqliteAvailable === true && sqlJsFallback === null;
   const resolvedPath = join(graphPath, "graph.db");
-  if (db && dbPath === resolvedPath) return db;
-  if (db) {
-    db.close();
-    db = null;
-    dbPath = null;
+
+  if (readonly) {
+    if (roDb && roDbPath === resolvedPath) return roDb;
+    if (roDb) {
+      roDb.close();
+      roDb = null;
+      roDbPath = null;
+    }
+  } else {
+    if (db && dbPath === resolvedPath) return db;
+    if (db) {
+      db.close();
+      db = null;
+      dbPath = null;
+    }
   }
+
   if (!isSqliteAvailable()) {
     throw new Error(
       "better-sqlite3 or sql.js required for graph. Install: npm install better-sqlite3"
@@ -117,8 +146,23 @@ function getDb(graphPath: string): SqliteDb {
   try {
     if (sqliteAvailable) {
       const Database = require("better-sqlite3");
+      if (readonly) {
+        const nativeDb = new Database(resolvedPath, {
+          readonly: true,
+          fileMustExist: true,
+          timeout: GRAPH_SQLITE_BUSY_TIMEOUT_MS,
+        }) as BetterSqlite3Handle;
+        roDb = nativeDb;
+        roDbPath = resolvedPath;
+        return nativeDb;
+      }
       mkdirSync(graphPath, { recursive: true });
-      db = new Database(resolvedPath) as SqliteDb;
+      const nativeDb = new Database(resolvedPath, {
+        timeout: GRAPH_SQLITE_BUSY_TIMEOUT_MS,
+      }) as BetterSqlite3Handle;
+      nativeDb.pragma("journal_mode = WAL");
+      nativeDb.pragma(`busy_timeout = ${GRAPH_SQLITE_BUSY_TIMEOUT_MS}`);
+      db = nativeDb;
       dbPath = resolvedPath;
     } else if (sqlJsFallback) {
       // sql.js creates in-memory DB; graphPath is ignored. Use better-sqlite3 for production persistence.
@@ -222,8 +266,8 @@ export function ensureGraphDir(graphPath: string): void {
   mkdirSync(graphPath, { recursive: true });
 }
 
-export function getDatabase(graphPath: string): SqliteDb {
-  return getDb(graphPath);
+export function getDatabase(graphPath: string, options?: GraphDatabaseOptions): SqliteDb {
+  return getDb(graphPath, options);
 }
 
 export function closeDatabase(): void {
@@ -231,6 +275,11 @@ export function closeDatabase(): void {
     db.close();
     db = null;
     dbPath = null;
+  }
+  if (roDb) {
+    roDb.close();
+    roDb = null;
+    roDbPath = null;
   }
 }
 
