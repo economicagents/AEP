@@ -17,33 +17,45 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 );
 `;
 
+/**
+ * One well-known bigint for `pg_advisory_lock`: serializes migration DDL across pooled
+ * connections (Vitest workers, cron overlap). Without this, concurrent `CREATE EXTENSION IF NOT EXISTS`
+ * can still race and hit `pg_extension_name_index` (23505) on `vector`.
+ */
+const MIGRATION_ADVISORY_LOCK_KEY = "87204601234";
+
 export async function runMigrations(client: PoolClient): Promise<void> {
-  await client.query(BOOTSTRAP_SQL);
+  await client.query("SELECT pg_advisory_lock($1::bigint)", [MIGRATION_ADVISORY_LOCK_KEY]);
+  try {
+    await client.query(BOOTSTRAP_SQL);
 
-  const dir = migrationsDir();
-  const files = readdirSync(dir)
-    .filter((f) => f.endsWith(".sql"))
-    .sort();
+    const dir = migrationsDir();
+    const files = readdirSync(dir)
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
 
-  for (const name of files) {
-    const applied = await client.query<{ n: string }>(
-      "SELECT 1 AS n FROM schema_migrations WHERE name = $1",
-      [name]
-    );
-    if (applied.rows.length > 0) {
-      continue;
+    for (const name of files) {
+      const applied = await client.query<{ n: string }>(
+        "SELECT 1 AS n FROM schema_migrations WHERE name = $1",
+        [name]
+      );
+      if (applied.rows.length > 0) {
+        continue;
+      }
+
+      const sql = readFileSync(join(dir, name), "utf-8");
+      await client.query("BEGIN");
+      try {
+        await client.query(sql);
+        await client.query("INSERT INTO schema_migrations (name) VALUES ($1)", [name]);
+        await client.query("COMMIT");
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      }
     }
-
-    const sql = readFileSync(join(dir, name), "utf-8");
-    await client.query("BEGIN");
-    try {
-      await client.query(sql);
-      await client.query("INSERT INTO schema_migrations (name) VALUES ($1)", [name]);
-      await client.query("COMMIT");
-    } catch (e) {
-      await client.query("ROLLBACK");
-      throw e;
-    }
+  } finally {
+    await client.query("SELECT pg_advisory_unlock($1::bigint)", [MIGRATION_ADVISORY_LOCK_KEY]);
   }
 }
 

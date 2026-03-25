@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **RateLimitPolicy:** `setLimits` now reverts with `RateLimitPolicyInvalidWindow` when `maxTxPerWindow > 0` and `windowSeconds == 0` (audit L-4). Existing mainnet factory/account/factory addresses unchanged; operators using `RateLimitPolicy` deploy new module instances to pick up the guard.
 
+### Fixed
+
+- **Indexer Postgres migrations:** session **`pg_advisory_lock`** around **`runMigrations`** so concurrent callers (e.g. parallel Vitest PG suites, overlapping sync jobs) no longer race **`CREATE EXTENSION vector`** and hit **`23505`** on **`pg_extension_name_index`**.
+
 ## [0.2.0] — 2026-03-25
 
 ### Added
