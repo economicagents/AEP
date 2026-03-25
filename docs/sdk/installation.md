@@ -1,6 +1,6 @@
 # SDK Installation
 
-Install the AEP TypeScript SDK for account deployment, policy management, x402 interception, and UserOp execution.
+Install the AEP TypeScript SDK for account deployment, policy management, x402 and MPP (Tempo session) policy helpers, and UserOp execution.
 
 ## Install
 

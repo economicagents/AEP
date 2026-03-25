@@ -31,10 +31,10 @@ See [MCP Tools](reference/mcp) for full reference.
 ## OpenClaw Skills
 
 ```bash
-cp -r skills/aep-budget skills/aep-counterparty skills/aep-x402 skills/aep-rate-limit skills/aep-relationships ~/.openclaw/skills/
+cp -r skills/aep-budget skills/aep-counterparty skills/aep-x402 skills/aep-mpp skills/aep-rate-limit skills/aep-relationships ~/.openclaw/skills/
 ```
 
-Or symlink: `ln -s /path/to/AEP/skills/aep-budget ~/.openclaw/skills/aep-budget` (and similarly for aep-counterparty, aep-x402, aep-rate-limit, aep-relationships)
+Or symlink: `ln -s /path/to/AEP/skills/aep-budget ~/.openclaw/skills/aep-budget` (and similarly for aep-counterparty, aep-x402, aep-mpp, aep-rate-limit, aep-relationships)
 
 See [Installing Skills](skills/installing).
 

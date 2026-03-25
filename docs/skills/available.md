@@ -6,6 +6,7 @@
 | [aep-rate-limit](skills/aep-rate-limit) | RateLimitPolicy configuration |
 | [aep-counterparty](skills/aep-counterparty) | Allow/block lists, min-reputation |
 | [aep-x402](skills/aep-x402) | x402 payment interception |
+| [aep-mpp](skills/aep-mpp) | MPP / Tempo session payment policy pre-check |
 | [aep-deploy](skills/aep-deploy) | Deploy factory, accounts, relationships |
 | [aep-integration](skills/aep-integration) | MCP, OpenClaw, execute UserOp |
 | [aep-indexer](skills/aep-indexer) | Provider index sync, probe |

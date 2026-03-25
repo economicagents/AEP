@@ -98,11 +98,35 @@ const intent = parseIntent({
 ## x402 Interceptor
 
 ```typescript
-import { interceptPayment, fetchWithPolicyCheck } from "@economicagents/sdk";
+import { interceptPayment, intercept402Response, fetchWithPolicyCheck } from "@economicagents/sdk";
 
-// Check before signing
-const result = await interceptPayment(accountAddress, amount, recipient, { rpcUrl });
+const ok = await interceptPayment(accountAddress, amount, recipient, { rpcUrl, chain });
 
-// Fetch with policy check (for x402 endpoints)
-const { response, policyCheck } = await fetchWithPolicyCheck(url, { accountAddress, rpcUrl });
+const res = await fetch(url, init);
+if (res.status === 402) {
+  const policy = await intercept402Response(accountAddress, res.headers, undefined, { rpcUrl, chain });
+}
+
+const outcome = await fetchWithPolicyCheck(accountAddress, url, init, { rpcUrl, chain });
+```
+
+## MPP (Tempo session) policy pre-check
+
+Use before paying with an [`mppx`](https://mpp.dev/sdk/typescript) client on MPP/Tempo endpoints. Policy is evaluated on **Base** against the AEP account; payment settles on **Tempo**.
+
+```typescript
+import { interceptMpp402Response, fetchWithMppPolicyCheck } from "@economicagents/sdk";
+
+const res = await fetch(url, init);
+if (res.status === 402) {
+  const gate = await interceptMpp402Response(accountAddress, res, { rpcUrl, chain });
+  if (gate.handled && !gate.policyCheck.allowed) {
+    console.error(gate.policyCheck.reason);
+  }
+}
+
+const pre = await fetchWithMppPolicyCheck(accountAddress, url, init, { rpcUrl, chain });
+if (pre.status === "payment_required" && pre.policyCheck.allowed) {
+  /* use mppx client fetch to complete payment and retry */
+}
 ```

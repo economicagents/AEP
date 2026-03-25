@@ -16,7 +16,7 @@ Returns service status.
 
 ### POST /resolve
 
-Resolve an intent to an execution plan. Standard tier ($0.005/resolve when x402 paywall enabled).
+Resolve an intent to an execution plan. Standard tier ($0.005/resolve default when paywall enabled: x402 or MPP Tempo session per `AEP_PAYWALL_BACKEND`).
 
 **Request body:** Intent JSON (see [Intent Schema](reference/intent-schema))
 
@@ -39,7 +39,7 @@ Resolve an intent to an execution plan. Standard tier ($0.005/resolve when x402 
 
 ### POST /resolve/premium
 
-Premium tier intent resolution ($0.02/resolve when x402 paywall enabled).
+Premium tier intent resolution ($0.02/resolve default when paywall enabled).
 
 ---
 
@@ -95,7 +95,9 @@ Fleet alerts (Frozen, DefaultDeclared, BreachDeclared, etc.).
 
 ### POST /probe
 
-Probe an x402 endpoint for health.
+Probe a **paid HTTP** endpoint for health (expects **402** with either classic **x402** headers or **MPP** `WWW-Authenticate: Payment`).
+
+**Response** includes `paymentKind`: `"x402"`, `"mpp"`, or `"unknown"` when status is 402.
 
 **Body:** `{ "url": "https://..." }` or `{ "agentId": "0x..." }`
 
@@ -120,7 +122,11 @@ GraphQL API for analytics queries.
 | PORT | API port (default: 3847) |
 | AEP_CONFIG_PATH | Config file path |
 | AEP_CHAIN_ID | Chain ID (84532 Base Sepolia, 8453 Base) |
-| AEP_TREASURY_ADDRESS | Enable x402 paywall |
+| AEP_TREASURY_ADDRESS | Enable paywall (treasury / payee) |
+| AEP_PAYWALL_BACKEND | `x402` (default) or `mpp` (Tempo session via `mppx`) |
+| MPP_SECRET_KEY / AEP_MPP_SECRET_KEY | Required for MPP backend; strong random |
+| AEP_TEMPO_CHAIN_ID / AEP_TEMPO_RPC_URL / AEP_TEMPO_CURRENCY / AEP_TEMPO_ESCROW_CONTRACT | Tempo rail when `AEP_PAYWALL_BACKEND=mpp` (see [monetization](../guides/monetization)) |
+| AEP_NETWORK | `base` or `base-sepolia` (x402-hono only) |
 | AEP_RESOLVE_PRICE | Standard resolve price |
 | AEP_RESOLVE_PRICE_PREMIUM | Premium resolve price |
 | AEP_FLEET_API_KEY | Fleet API auth |

@@ -113,10 +113,10 @@ Tools: `get_balance`, `get_policy_state`, `set_budget_caps`, `resolve_intent`, `
 ### OpenClaw Skills
 
 ```bash
-cp -r skills/aep-budget skills/aep-counterparty skills/aep-x402 skills/aep-rate-limit skills/aep-relationships ~/.openclaw/skills/
+cp -r skills/aep-budget skills/aep-counterparty skills/aep-x402 skills/aep-mpp skills/aep-rate-limit skills/aep-relationships ~/.openclaw/skills/
 ```
 
-Or symlink: `ln -s /path/to/AEP/skills/aep-budget ~/.openclaw/skills/aep-budget` (and similarly for aep-counterparty, aep-x402, aep-rate-limit, aep-relationships)
+Or symlink: `ln -s /path/to/AEP/skills/aep-budget ~/.openclaw/skills/aep-budget` (and similarly for aep-counterparty, aep-x402, aep-mpp, aep-rate-limit, aep-relationships)
 
 **Skill:** [aep-integration](../skills/aep-integration/SKILL.md)
 
