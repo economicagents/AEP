@@ -52,6 +52,30 @@ export {
   fetchWithPolicyCheck,
 } from "./x402/fetchWithPolicy.js";
 export type { FetchWithPolicyResult } from "./x402/fetchWithPolicy.js";
+export {
+  tempoChainId,
+  tempoMainnet,
+  tempoModerato,
+  tempoMainnetUsdc,
+  tempoPathUsdPlaceholder,
+  tempoTestnetDefaultCurrency,
+  tempoEscrowContract,
+  tempoTip20Decimals,
+  resolveTempoChain,
+  resolveTempoChainId,
+} from "./tempo-chains.js";
+export {
+  headersIndicateMppPayment,
+  classifyPaywallHeaders,
+  tempoSessionChallengeToPolicy,
+  tempoSessionProbeFromHeaders,
+  interceptMpp402Response,
+} from "./mpp/interceptor.js";
+export type { TempoSessionPolicyInputs } from "./mpp/interceptor.js";
+export {
+  fetchWithMppPolicyCheck,
+} from "./mpp/fetchWithPolicy.js";
+export type { FetchWithMppPolicyResult } from "./mpp/fetchWithPolicy.js";
 export type {
   AEPConfig,
   CreateAccountOptions,
