@@ -289,7 +289,7 @@ export async function syncIndex(config: IndexConfig): Promise<{ added: number; u
 
 export { loadProviders, loadState } from "./store.js";
 export { probeX402Endpoint } from "./probe.js";
-export type { ProbeResult } from "./probe.js";
+export type { ProbeResult, ProbePaymentKind } from "./probe.js";
 export {
   buildSearchIndex,
   hasVectorIndex,
