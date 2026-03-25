@@ -9,7 +9,7 @@
   },
   "bugs": "https://github.com/economicagents/AEP/issues",
   "homepage": "https://github.com/economicagents/AEP#readme",
-  "keywords": ["aep", "agent", "erc-4337", "account-abstraction", "x402", "ethereum", "viem"],
+  "keywords": ["aep", "agent", "erc-4337", "account-abstraction", "x402", "mpp", "tempo", "ethereum", "viem"],
   "publishConfig": {
     "access": "public"
   },
@@ -31,7 +31,8 @@
   "dependencies": {
     "@economicagents/graph": "workspace:*",
     "@economicagents/viem-rpc": "workspace:*",
-    "viem": "^2.21.0",
+    "viem": "^2.47.5",
+    "mppx": "0.4.9",
     "zod": "^3.25.0"
   },
   "devDependencies": {

@@ -29,7 +29,7 @@
     "@economicagents/sdk": "workspace:*",
     "@economicagents/viem-rpc": "workspace:*",
     "pg": "^8.13.1",
-    "viem": "^2.21.0"
+    "viem": "^2.47.5"
   },
   "optionalDependencies": {
     "better-sqlite3": "^12.1.0",

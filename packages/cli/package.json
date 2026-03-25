@@ -9,7 +9,7 @@
   },
   "bugs": "https://github.com/economicagents/AEP/issues",
   "homepage": "https://github.com/economicagents/AEP#readme",
-  "keywords": ["aep", "agent", "erc-4337", "cli", "x402", "ethereum"],
+  "keywords": ["aep", "agent", "erc-4337", "cli", "x402", "mpp", "tempo", "ethereum"],
   "publishConfig": {
     "access": "public"
   },
@@ -29,7 +29,8 @@
     "@economicagents/resolver": "workspace:*",
     "@economicagents/sdk": "workspace:*",
     "commander": "^12.1.0",
-    "viem": "^2.21.0"
+    "viem": "^2.47.5",
+    "mppx": "0.4.9"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
