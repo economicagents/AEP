@@ -7,7 +7,9 @@
  * GET /analytics/credit-score/:address - credit score.
  * GET /analytics/recommendations/:address - provider recommendations.
  * POST /graphql - GraphQL API for analytics.
- * When AEP_TREASURY_ADDRESS (or treasuryAddress in config) and AEP_RESOLVE_PRICE are set, POST /resolve is gated via x402.
+ * When AEP_TREASURY_ADDRESS (or treasuryAddress in config) is set, POST /resolve is gated:
+ * - default: x402 (`AEP_PAYWALL_BACKEND=x402` or unset)
+ * - `AEP_PAYWALL_BACKEND=mpp`: MPP Tempo session (`mppx`), see docs/guides/monetization.md
  */
 
 import { Hono, type Context } from "hono";
@@ -36,6 +38,7 @@ import {
   getFleetAlerts,
   getRecommendations,
 } from "@economicagents/graph";
+import { createMppxHono, getPaywallBackend, tempoSessionOptions } from "./mpp-config.js";
 
 const DEFAULT_INDEX_PATH = join(homedir(), ".aep", "index");
 const DEFAULT_GRAPH_PATH = join(homedir(), ".aep", "graph");
@@ -56,6 +59,14 @@ interface Config {
   rpcUrl?: string;
   chainId?: number;
   treasuryAddress?: string;
+  /** Tempo JSON-RPC URL when `AEP_PAYWALL_BACKEND=mpp` (optional; env `AEP_TEMPO_RPC_URL` overrides). */
+  tempoRpcUrl?: string;
+  /** Tempo chain id: 4217 mainnet, 42431 Moderato (optional; env overrides). */
+  tempoChainId?: number;
+  /** TIP-20 token address on Tempo (optional; env `AEP_TEMPO_CURRENCY` overrides). */
+  tempoCurrency?: string;
+  /** `TempoStreamChannel` escrow (optional; env overrides). */
+  tempoEscrowContract?: string;
   fleets?: Record<
     string,
     { accounts: string[]; name?: string }
@@ -79,6 +90,10 @@ function loadConfig(): Config {
         rpcUrl: data.rpcUrl,
         chainId: data.chainId,
         treasuryAddress: data.treasuryAddress,
+        tempoRpcUrl: data.tempoRpcUrl,
+        tempoChainId: data.tempoChainId,
+        tempoCurrency: data.tempoCurrency,
+        tempoEscrowContract: data.tempoEscrowContract,
         fleets: data.fleets,
       };
     } catch {
@@ -117,8 +132,41 @@ async function configurePaywallAndStart() {
   const paywallEnabled = Boolean(
     treasuryAddress && treasuryAddress.startsWith("0x") && treasuryAddress.length === 42
   );
+  const paywallBackend = getPaywallBackend();
 
-  if (paywallEnabled) {
+  if (paywallEnabled && paywallBackend === "mpp") {
+    const { mppx, chainId } = createMppxHono(treasuryAddress!, {
+      tempoRpcUrl: startupConfig.tempoRpcUrl,
+      tempoChainId: startupConfig.tempoChainId,
+      tempoCurrency: startupConfig.tempoCurrency,
+      tempoEscrowContract: startupConfig.tempoEscrowContract,
+    });
+    app.post(
+      "/resolve",
+      mppx.session(
+        tempoSessionOptions({
+          chainId,
+          amount: resolvePrice,
+          description: "Resolve an economic intent against the AEP provider index (Standard)",
+        })
+      ),
+      resolveRouteWrapped
+    );
+    app.post(
+      "/resolve/premium",
+      mppx.session(
+        tempoSessionOptions({
+          chainId,
+          amount: resolvePricePremium,
+          description: "Premium resolution with priority handling",
+        })
+      ),
+      resolveRouteWrapped
+    );
+    console.log(
+      `MPP Tempo session paywall: POST /resolve = $${resolvePrice}, POST /resolve/premium = $${resolvePricePremium} (payTo: ${treasuryAddress})`
+    );
+  } else if (paywallEnabled && paywallBackend === "x402") {
     app.use(
       paymentMiddleware(treasuryAddress!, {
         "/resolve": {
@@ -137,18 +185,24 @@ async function configurePaywallAndStart() {
         },
       })
     );
+    app.post("/resolve", resolveRouteWrapped);
+    app.post("/resolve/premium", resolveRouteWrapped);
     console.log(
       `x402 paywall enabled: POST /resolve = $${resolvePrice}, POST /resolve/premium = $${resolvePricePremium} (payTo: ${treasuryAddress})`
     );
   } else {
-    console.log("x402 paywall disabled (set AEP_TREASURY_ADDRESS or treasuryAddress in ~/.aep/config.json to enable)");
+    app.post("/resolve", resolveRouteWrapped);
+    app.post("/resolve/premium", resolveRouteWrapped);
+    console.log(
+      "Paywall disabled (set AEP_TREASURY_ADDRESS or treasuryAddress in ~/.aep/config.json; use AEP_PAYWALL_BACKEND=mpp for Tempo session)"
+    );
   }
 
   const port = parseInt(process.env.PORT ?? String(DEFAULT_PORT), 10);
   serve({ fetch: app.fetch, port }, (info) => {
     console.log(`AEP API listening on http://localhost:${info.port}`);
     console.log("POST /resolve, POST /resolve/premium - intent JSON body, ?indexPath= optional");
-    console.log("POST /probe, POST /probe/batch - on-demand x402 endpoint probe");
+    console.log("POST /probe, POST /probe/batch - on-demand paid HTTP endpoint probe (x402 + MPP)");
     console.log(
       "GET /analytics/account/:address, /analytics/credit-score/:address, /analytics/recommendations/:address"
     );
@@ -203,6 +257,7 @@ app.post("/probe", async (c) => {
     const result = await probeX402Endpoint(targetUrl);
     return c.json({
       success: result.success,
+      paymentKind: result.paymentKind,
       price: result.price?.toString(),
       latencyMs: result.latencyMs,
       paymentTo: result.paymentTo,
@@ -248,6 +303,7 @@ app.post("/probe/batch", async (c) => {
     return c.json(
       results.map((r) => ({
         success: r.success,
+        paymentKind: r.paymentKind,
         price: r.price?.toString(),
         latencyMs: r.latencyMs,
         paymentTo: r.paymentTo,
@@ -276,23 +332,14 @@ async function resolveHandler(c: Context) {
   return c.json(plan);
 }
 
-app.post("/resolve", async (c) => {
+async function resolveRouteWrapped(c: Context) {
   try {
     return await resolveHandler(c);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return c.json({ error: message }, 400);
   }
-});
-
-app.post("/resolve/premium", async (c) => {
-  try {
-    return await resolveHandler(c);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return c.json({ error: message }, 400);
-  }
-});
+}
 
 const graphPath = startupConfig.graphPath ?? DEFAULT_GRAPH_PATH;
 const indexPath = startupConfig.indexPath ?? DEFAULT_INDEX_PATH;
@@ -673,4 +720,10 @@ app.use(
   })
 );
 
-configurePaywallAndStart();
+configurePaywallAndStart().catch((err) => {
+  console.error(
+    "AEP API startup failed (treasury/paywall/Tempo configuration):",
+    err instanceof Error ? err.stack ?? err.message : err
+  );
+  process.exit(1);
+});
