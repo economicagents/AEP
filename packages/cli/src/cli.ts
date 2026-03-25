@@ -4,9 +4,10 @@ import { Command } from "commander";
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
-import { isAddress, type Chain } from "viem";
+import { createClient, http, isAddress, type Chain } from "viem";
 import { privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { getSignerAccount } from "@economicagents/keystore";
+import { Mppx, tempo } from "mppx/client";
 import {
   createAccount,
   getAccountAddress,
@@ -41,6 +42,10 @@ import {
   ERC8004_BASE_MAINNET,
   USDC_BASE_SEPOLIA,
   USDC_BASE_MAINNET,
+  classifyPaywallHeaders,
+  interceptMpp402Response,
+  resolveTempoChain,
+  resolveTempoChainId,
   createCreditFacility,
   getCreditFacilityState,
   creditDeposit,
@@ -169,6 +174,14 @@ interface Config {
   treasuryAddress?: string;
   /** Phase 4: Economic graph path. Default ~/.aep/graph */
   graphPath?: string;
+  /** Tempo JSON-RPC for MPP client (`aep resolve --api-url`). Env `AEP_TEMPO_RPC_URL` overrides. */
+  tempoRpcUrl?: string;
+  /** Tempo chain id for MPP (4217 / 42431). Env `AEP_TEMPO_CHAIN_ID` overrides. */
+  tempoChainId?: number;
+  /** TIP-20 on Tempo (validated if set). Env `AEP_TEMPO_CURRENCY` overrides when server-hosted. */
+  tempoCurrency?: string;
+  /** TempoStreamChannel escrow (validated if set). Env `AEP_TEMPO_ESCROW_CONTRACT` overrides when server-hosted. */
+  tempoEscrowContract?: string;
 }
 
 function loadConfig(): Config {
@@ -248,6 +261,84 @@ function resolveCliChain(config: Config): Chain {
   };
 }
 
+function cliPaywallBackend(): "x402" | "mpp" {
+  const v = process.env.AEP_PAYWALL_BACKEND?.trim().toLowerCase();
+  if (v === "mpp") return "mpp";
+  return "x402";
+}
+
+/**
+ * Managed API resolve: x402 error with guidance, or MPP Tempo session via mppx client.
+ */
+async function fetchManagedResolve(url: string, init: RequestInit, config: Config): Promise<Response> {
+  const first = await fetch(url, init);
+  if (first.status !== 402) {
+    return first;
+  }
+  const kind = classifyPaywallHeaders(first.headers);
+  const useMpp = cliPaywallBackend() === "mpp" || kind === "mpp";
+  if (!useMpp) {
+    console.error(
+      "Payment required (x402). Use an x402-capable client, use a free API instance, or set AEP_PAYWALL_BACKEND=mpp for MPP/Tempo session paywalls."
+    );
+    process.exit(1);
+  }
+
+  if (config.account && isAddress(config.account)) {
+    const intercepted = await interceptMpp402Response(config.account as `0x${string}`, first, {
+      rpcUrl: config.rpcUrl ?? DEFAULT_RPC,
+      chain: resolveCliChain(config),
+    });
+    if (intercepted.handled && !intercepted.policyCheck.allowed) {
+      console.error(
+        `AEP policy declined this payment: ${intercepted.policyCheck.reason ?? "UNKNOWN"}`
+      );
+      process.exit(1);
+    }
+  }
+
+  const { account } = await requireSigner({});
+  let chainId: number;
+  try {
+    chainId = resolveTempoChainId({
+      envChainId: process.env.AEP_TEMPO_CHAIN_ID,
+      fileChainId: config.tempoChainId,
+    });
+  } catch (e) {
+    console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
+    process.exit(1);
+  }
+  const { chain } = resolveTempoChain(chainId);
+  const rpcOverride =
+    process.env.AEP_TEMPO_RPC_URL?.trim() || config.tempoRpcUrl?.trim();
+  const rpcUrl =
+    rpcOverride && rpcOverride.length > 0 ? rpcOverride : chain.rpcUrls.default.http[0];
+  if (!rpcUrl || rpcUrl.length === 0) {
+    console.error(
+      "Error: set AEP_TEMPO_RPC_URL or tempoRpcUrl in ~/.aep/config.json for Tempo (MPP paywall)."
+    );
+    process.exit(1);
+  }
+
+  const mppx = Mppx.create({
+    methods: [
+      tempo({
+        account,
+        getClient: async ({ chainId: cid }) => {
+          const id = cid ?? chainId;
+          const { chain: tempoChain } = resolveTempoChain(id);
+          return createClient({
+            chain: tempoChain,
+            transport: http(rpcUrl),
+          });
+        },
+      }),
+    ],
+    polyfill: false,
+  });
+  return mppx.fetch(url, init);
+}
+
 type Erc8004Bundle = {
   identityRegistry: `0x${string}`;
   reputationRegistry: `0x${string}`;
@@ -277,6 +368,8 @@ const ADDRESS_FIELDS: (keyof Config)[] = [
   "revenueSplitterFactoryAddress",
   "slaFactoryAddress",
   "treasuryAddress",
+  "tempoCurrency",
+  "tempoEscrowContract",
 ];
 
 function validateConfig(config: Config): string[] {
@@ -311,6 +404,15 @@ function validateConfig(config: Config): string[] {
   }
   if (config.bundlerRpcUrl !== undefined && typeof config.bundlerRpcUrl !== "string") {
     errors.push("bundlerRpcUrl: must be string");
+  }
+  if (
+    config.tempoChainId !== undefined &&
+    (typeof config.tempoChainId !== "number" || config.tempoChainId <= 0)
+  ) {
+    errors.push("tempoChainId: must be positive number (e.g. 4217 Tempo mainnet, 42431 Moderato)");
+  }
+  if (config.tempoRpcUrl !== undefined && typeof config.tempoRpcUrl !== "string") {
+    errors.push("tempoRpcUrl: must be string");
   }
 
   const mon = config.monitor;
@@ -1246,7 +1348,7 @@ program
   .option("--max-total <usd>", "Max total budget in USD", "999999")
   .option("--min-reputation <0-1>", "Minimum reputation score", parseFloat)
   .option("--index-path <path>", "Path to provider index", DEFAULT_INDEX_PATH)
-  .option("--api-url <url>", "Call managed API instead of local resolver (paywalled when enabled)")
+  .option("--api-url <url>", "Call managed API instead of local resolver (x402 or MPP when paywalled)")
   .option("--premium", "Use /resolve/premium endpoint ($0.02) when --api-url is set")
   .action(async (opts) => {
     const config = loadConfig();
@@ -1273,17 +1375,13 @@ program
         if (config.account && isAddress(config.account)) params.set("accountAddress", config.account);
         if (config.graphPath) params.set("graphPath", graphPathResolve);
         const query = params.toString() ? `?${params.toString()}` : "";
-        const res = await fetch(`${url}${query}`, {
+        const target = `${url}${query}`;
+        const init: RequestInit = {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(intent),
-        });
-        if (res.status === 402) {
-          console.error(
-            "Payment required. This API requires x402 payment. Run without AEP_TREASURY_ADDRESS for free access, or use a client with x402 support."
-          );
-          process.exit(1);
-        }
+        };
+        const res = await fetchManagedResolve(target, init, config);
         if (!res.ok) {
           const body = await res.text();
           let msg = res.statusText;
@@ -1320,7 +1418,7 @@ program
 
 program
   .command("provider probe")
-  .description("Probe x402 endpoint (on-demand health check)")
+  .description("Probe paid HTTP endpoint — x402 or MPP (on-demand health check)")
   .argument("[url]", "x402 endpoint URL to probe")
   .option("--agent-id <id>", "Agent ID (lookup URL from index)")
   .option("--index-path <path>", "Path to provider index (for --agent-id)", DEFAULT_INDEX_PATH)
@@ -1371,6 +1469,7 @@ program
       const result = await probeX402Endpoint(targetUrl);
       const out = {
         success: result.success,
+        paymentKind: result.paymentKind,
         price: result.price?.toString(),
         latencyMs: result.latencyMs,
         paymentTo: result.paymentTo,
