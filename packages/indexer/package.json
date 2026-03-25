@@ -9,7 +9,13 @@
   },
   "bugs": "https://github.com/economicagents/AEP/issues",
   "homepage": "https://github.com/economicagents/AEP#readme",
-  "keywords": ["aep", "agent", "erc-8004", "indexer", "intent-resolution"],
+  "keywords": [
+    "aep",
+    "agent",
+    "erc-8004",
+    "indexer",
+    "intent-resolution"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -28,6 +34,7 @@
   "dependencies": {
     "@economicagents/sdk": "workspace:*",
     "@economicagents/viem-rpc": "workspace:*",
+    "commander": "^12.1.0",
     "pg": "^8.13.1",
     "viem": "^2.47.5"
   },

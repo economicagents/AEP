@@ -2,7 +2,7 @@
 
 import { Command } from "commander";
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
-import { join } from "path";
+import { join, resolve as resolvePath } from "path";
 import { homedir } from "os";
 import { createClient, http, isAddress, type Chain } from "viem";
 import { privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
@@ -82,6 +82,9 @@ import {
 import { loadProviders, probeX402Endpoint } from "@economicagents/indexer";
 import { runMonitor } from "@economicagents/monitor";
 import { resolveIntent } from "@economicagents/resolver";
+import { emitResult, emitTxLine, wantsJson, setGlobalJson } from "./cli-output.js";
+import { exitWithHint } from "./errors.js";
+import { resolveKeystoreAccountName } from "./keystore-flags.js";
 
 let privateKeyWarningEmitted = false;
 
@@ -238,6 +241,14 @@ function handleError(err: unknown, context: string): never {
   const msg = err instanceof Error ? err.message : String(err);
   console.error(`Error (${context}):`, msg);
   process.exit(1);
+}
+
+function readStdinUtf8(): string {
+  try {
+    return readFileSync(0, "utf-8");
+  } catch {
+    return "";
+  }
 }
 
 function saveConfig(config: Config) {
@@ -463,37 +474,104 @@ const program = new Command();
 program
   .name("aep")
   .description("AEP (Agent Economic Protocol) CLI")
-  .version("0.1.0");
+  .version("0.1.0")
+  .option("--json", "Emit compact JSON on stdout for supported commands")
+  .option(
+    "--keystore-password-file <path>",
+    "Read Foundry keystore password from file (non-interactive); sets AEP_KEYSTORE_PASSWORD_FILE"
+  )
+  .hook("preAction", (_thisCommand, actionCommand) => {
+    const globals = actionCommand.optsWithGlobals() as {
+      keystorePasswordFile?: string;
+      json?: boolean;
+    };
+    setGlobalJson(Boolean(globals.json));
+    const raw = globals.keystorePasswordFile as string | undefined;
+    if (raw != null && String(raw).trim().length > 0) {
+      const rel = String(raw).trim();
+      if (rejectPathTraversal(rel)) {
+        console.error("Error: invalid --keystore-password-file path (contains '..' or null bytes)");
+        process.exit(1);
+      }
+      const abs = resolvePath(rel);
+      process.env.AEP_KEYSTORE_PASSWORD_FILE = abs;
+    }
+  })
+  .addHelpText(
+    "after",
+    `\nTypical flows:\n  Account: aep deploy --help, aep execute --help\n  Intents: aep resolve --help\n  Index: aep-index sync --help\n  Graph: aep graph sync --help\n`
+  );
 
 program
   .command("deploy")
   .description("Deploy a new AEP account")
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ aep deploy -f 0x...Factory -n mykeystore
+  $ aep deploy -f 0x...Factory -k 0x...PRIVATE_KEY --skip-config-write --json
+  $ aep deploy -f 0x...Factory -n mykeystore --if-not-configured
+`
+  )
   .option("-o, --owner <address>", "Owner address (default: derived from signer)")
-  .option("-a, --account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account name (env: AEP_KEYSTORE_ACCOUNT)")
+  .option(
+    "-a, --account <name>",
+    "[deprecated: use -n/--keystore-account] Foundry keystore account name"
+  )
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-s, --salt <hex>", "CREATE2 salt (default: 0x00...)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .requiredOption("-f, --factory <address>", "Factory address (from forge script script/Deploy.s.sol)")
+  .option("--skip-config-write", "Do not write ~/.aep/config.json after deploy")
+  .option(
+    "--if-not-configured",
+    "If ~/.aep/config.json already lists this predicted account for this factory/salt/owner, exit 0 without a new tx"
+  )
   .action(async (opts) => {
     requireFactory(opts.factory, "deploy");
+    const ks =
+      resolveKeystoreAccountName(opts, "aep deploy") ?? loadConfig().foundryAccount;
     const signer = await requireSigner({
       privateKey: opts.privateKey,
-      account: opts.account ?? opts.keystoreAccount ?? loadConfig().foundryAccount,
+      account: ks,
     });
     const pk = signer.privateKey;
     const owner = (opts.owner ?? signer.account.address) as string;
     requireAddress(owner, "owner");
     const salt = (opts.salt ?? `0x${"0".repeat(64)}`) as `0x${string}`;
     const chainConfig = loadConfig();
+    const factoryAddr = opts.factory as `0x${string}`;
 
     try {
+      if (opts.ifNotConfigured) {
+        const cfg = loadConfig();
+        const predicted = await getAccountAddress(owner as `0x${string}`, salt, {
+          factoryAddress: factoryAddr,
+          rpcUrl: opts.rpc,
+          chain: resolveCliChain(chainConfig),
+        });
+        const cfgFactory = cfg.factoryAddress?.toLowerCase?.() ?? "";
+        if (
+          cfg.account &&
+          cfg.account.toLowerCase() === predicted.toLowerCase() &&
+          cfgFactory === factoryAddr.toLowerCase()
+        ) {
+          emitResult(opts, { status: "already_deployed", account: predicted, factory: factoryAddr }, [
+            `Already deployed (config matches): ${predicted}`,
+          ]);
+          return;
+        }
+      }
+
       const { account, txHash } = await createAccount({
         owner: owner as `0x${string}`,
         salt,
         privateKey: pk,
         rpcUrl: opts.rpc,
         chain: resolveCliChain(chainConfig),
-        factoryAddress: opts.factory as `0x${string}`,
+        factoryAddress: factoryAddr,
         entryPointAddress: DEFAULT_ENTRYPOINT as `0x${string}`,
       });
 
@@ -510,10 +588,20 @@ program
       config.validationRegistryAddress = erc.validationRegistry;
       config.usdcAddress = usdcForConfig(chainConfig);
       config.treasuryAddress = owner;
-      saveConfig(config);
+      if (!opts.skipConfigWrite) {
+        saveConfig(config);
+      }
 
-      console.log("Account deployed:", account);
-      console.log("Tx hash:", txHash);
+      emitResult(
+        opts,
+        {
+          command: "deploy",
+          account,
+          txHash,
+          configWritten: !opts.skipConfigWrite,
+        },
+        [`Account deployed: ${account}`, `Tx hash: ${txHash}`]
+      );
     } catch (err) {
       handleError(err, "deploy");
     }
@@ -522,8 +610,20 @@ program
 program
   .command("address")
   .description("Get predicted account address")
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ aep address -f 0x...Factory -n mykeystore
+  $ aep address -f 0x...Factory -o 0xOwner...
+`
+  )
   .option("-o, --owner <address>", "Owner address (default: derived from signer)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account name (env: AEP_KEYSTORE_ACCOUNT)")
+  .option(
+    "-a, --account <name>",
+    "[deprecated: use -n/--keystore-account] Foundry keystore account name"
+  )
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-s, --salt <hex>", "CREATE2 salt", `0x${"0".repeat(64)}`)
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
@@ -533,14 +633,18 @@ program
     let owner: string | undefined = opts.owner;
     if (!owner) {
       try {
+        const ks =
+          resolveKeystoreAccountName(opts, "aep address") ?? loadConfig().foundryAccount;
         const signer = await resolveSigner({
           privateKey: opts.privateKey,
-          account: opts.account ?? opts.keystoreAccount ?? loadConfig().foundryAccount,
+          account: ks,
         });
         owner = signer.account.address;
       } catch {
-        console.error("Error: --owner or signer (AEP_KEYSTORE_ACCOUNT/PRIVATE_KEY) required");
-        process.exit(1);
+        exitWithHint("No owner: set --owner or signer via -n/--keystore-account (or env AEP_KEYSTORE_ACCOUNT / PRIVATE_KEY)", [
+          "aep address -f <factory> -n <keystore_name>",
+          "aep config validate",
+        ]);
       }
     }
     requireAddress(owner, "owner");
@@ -554,7 +658,7 @@ program
           chain: resolveCliChain(loadConfig()),
         }
       );
-      console.log(address);
+      emitResult(opts, { command: "address", address }, [address]);
     } catch (err) {
       handleError(err, "address");
     }
@@ -563,9 +667,20 @@ program
 program
   .command("config validate")
   .description("Validate ~/.aep/config.json (format, paths, addresses)")
-  .action(() => {
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ aep config validate
+`
+  )
+  .action((opts) => {
     if (!existsSync(CONFIG_PATH)) {
-      console.log("Config file not found (ok if using defaults)");
+      emitResult(
+        opts,
+        { command: "config validate", status: "missing", message: "Config file not found (ok if using defaults)" },
+        ["Config file not found (ok if using defaults)"]
+      );
       return;
     }
     let config: Config;
@@ -581,20 +696,22 @@ program
       errors.forEach((e) => console.error("  -", e));
       process.exit(1);
     }
-    console.log("Config valid");
+    emitResult(opts, { command: "config validate", status: "ok", configPath: CONFIG_PATH }, ["Config valid"]);
   });
 
 program
   .command("balance")
   .description("Get account deposit (EntryPoint balance)")
-  .option("-a, --account <address>", "Account address (or from config)")
+  .option("-a, --account <address>", "Smart account address (or from config after deploy)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (opts) => {
     const config = loadConfig();
     const account = (opts.account ?? config.account) as `0x${string}` | undefined;
     if (!account) {
-      console.error("Error: --account or deploy first to set config");
-      process.exit(1);
+      exitWithHint("No smart account: pass -a/--account <address> or run deploy (writes config)", [
+        "aep balance -a 0x...YourSmartAccount",
+        "aep deploy -f <factory> -n <keystore>",
+      ]);
     }
     requireAddress(account, "account");
 
@@ -603,7 +720,11 @@ program
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Deposit:", balance.toString(), "wei");
+      emitResult(
+        opts,
+        { command: "balance", account, depositWei: balance.toString() },
+        [`Deposit: ${balance.toString()} wei`]
+      );
     } catch (err) {
       handleError(err, "balance");
     }
@@ -620,8 +741,9 @@ program
     const config = loadConfig();
     const account = (opts.account ?? config.account) as `0x${string}` | undefined;
     if (!account) {
-      console.error("Error: --account or deploy first to set config");
-      process.exit(1);
+      exitWithHint("No smart account: pass -c/--account <address> or deploy (writes config)", [
+        "aep check-policy -c 0x...SmartAccount -a <amount_wei> -t 0x...Recipient",
+      ]);
     }
     requireAddress(account, "account");
     requireAddress(opts.to, "recipient");
@@ -637,7 +759,17 @@ program
           chain: resolveCliChain(config),
         }
       );
-      console.log(allowed ? "Allowed" : "Denied");
+      emitResult(
+        opts,
+        {
+          command: "check-policy",
+          allowed,
+          smartAccount: account,
+          amountWei: amount.toString(),
+          recipient: opts.to,
+        },
+        [allowed ? "Allowed" : "Denied"]
+      );
       process.exit(allowed ? 0 : 1);
     } catch (err) {
       handleError(err, "check-policy");
@@ -647,16 +779,16 @@ program
 program
   .command("freeze")
   .description("Freeze account (blocks all operations)")
-  .option("-a, --account <address>", "Account address (or from config)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .addHelpText("after", `\nExamples:\n  $ aep freeze -a 0x...SmartAccount\n  $ aep freeze --json\n`)
+  .option("-a, --account <address>", "Smart account address (or from config)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (opts) => {
     const config = loadConfig();
     const account = (opts.account ?? config.account) as `0x${string}` | undefined;
     if (!account) {
-      console.error("Error: --account or deploy first to set config");
-      process.exit(1);
+      exitWithHint("No smart account: pass -a/--account or deploy first", ["aep freeze -a 0x...SmartAccount"]);
     }
     requireAddress(account, "account");
     const signer = await requireSigner({
@@ -670,7 +802,11 @@ program
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Account frozen. Tx:", hash);
+      emitResult(
+        opts,
+        { command: "freeze", smartAccount: account, txHash: hash },
+        [`Account frozen. Tx: ${hash}`]
+      );
     } catch (err) {
       handleError(err, "freeze");
     }
@@ -679,16 +815,15 @@ program
 program
   .command("unfreeze")
   .description("Unfreeze account")
-  .option("-a, --account <address>", "Account address (or from config)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-a, --account <address>", "Smart account address (or from config)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (opts) => {
     const config = loadConfig();
     const account = (opts.account ?? config.account) as `0x${string}` | undefined;
     if (!account) {
-      console.error("Error: --account or deploy first to set config");
-      process.exit(1);
+      exitWithHint("No smart account: pass -a/--account or deploy first", ["aep unfreeze -a 0x...SmartAccount"]);
     }
     requireAddress(account, "account");
     const signer = await requireSigner({
@@ -702,7 +837,11 @@ program
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Account unfrozen. Tx:", hash);
+      emitResult(
+        opts,
+        { command: "unfreeze", smartAccount: account, txHash: hash },
+        [`Account unfrozen. Tx: ${hash}`]
+      );
     } catch (err) {
       handleError(err, "unfreeze");
     }
@@ -711,14 +850,13 @@ program
 program
   .command("modules")
   .description("List policy module addresses for an account")
-  .option("-a, --account <address>", "Account address (or from config)")
+  .option("-a, --account <address>", "Smart account address (or from config)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (opts) => {
     const config = loadConfig();
     const account = (opts.account ?? config.account) as `0x${string}` | undefined;
     if (!account) {
-      console.error("Error: --account or deploy first to set config");
-      process.exit(1);
+      exitWithHint("No smart account: pass -a/--account or deploy first", ["aep modules -a 0x...SmartAccount"]);
     }
     requireAddress(account, "account");
 
@@ -727,7 +865,11 @@ program
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      modules.forEach((m: string, i: number) => console.log(`${i}: ${m}`));
+      emitResult(
+        opts,
+        { command: "modules", smartAccount: account, modules },
+        modules.map((m: string, i: number) => `${i}: ${m}`)
+      );
     } catch (err) {
       handleError(err, "modules");
     }
@@ -746,16 +888,32 @@ program
         rpcUrl: opts.rpc ?? loadConfig().rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(loadConfig()),
       });
-      console.log("maxPerTx:", state.maxPerTx.toString());
-      console.log("maxDaily:", state.maxDaily.toString());
-      console.log("maxWeekly:", state.maxWeekly.toString());
-      console.log("maxPerTask:", state.maxPerTask.toString());
-      console.log("taskWindowSeconds:", state.taskWindowSeconds.toString());
-      console.log("dailyWindowSeconds:", state.dailyWindowSeconds.toString());
-      console.log("weeklyWindowSeconds:", state.weeklyWindowSeconds.toString());
-      console.log("spentDaily:", state.spentDaily.toString());
-      console.log("spentWeekly:", state.spentWeekly.toString());
-      console.log("spentInTask:", state.spentInTask.toString());
+      const payload = {
+        command: "policy-get",
+        module: opts.module,
+        maxPerTx: state.maxPerTx.toString(),
+        maxDaily: state.maxDaily.toString(),
+        maxWeekly: state.maxWeekly.toString(),
+        maxPerTask: state.maxPerTask.toString(),
+        taskWindowSeconds: state.taskWindowSeconds.toString(),
+        dailyWindowSeconds: state.dailyWindowSeconds.toString(),
+        weeklyWindowSeconds: state.weeklyWindowSeconds.toString(),
+        spentDaily: state.spentDaily.toString(),
+        spentWeekly: state.spentWeekly.toString(),
+        spentInTask: state.spentInTask.toString(),
+      };
+      emitResult(opts, payload, [
+        `maxPerTx: ${payload.maxPerTx}`,
+        `maxDaily: ${payload.maxDaily}`,
+        `maxWeekly: ${payload.maxWeekly}`,
+        `maxPerTask: ${payload.maxPerTask}`,
+        `taskWindowSeconds: ${payload.taskWindowSeconds}`,
+        `dailyWindowSeconds: ${payload.dailyWindowSeconds}`,
+        `weeklyWindowSeconds: ${payload.weeklyWindowSeconds}`,
+        `spentDaily: ${payload.spentDaily}`,
+        `spentWeekly: ${payload.spentWeekly}`,
+        `spentInTask: ${payload.spentInTask}`,
+      ]);
     } catch (err) {
       handleError(err, "policy-get");
     }
@@ -764,6 +922,10 @@ program
 program
   .command("policy-set")
   .description("Set BudgetPolicy caps (owner only)")
+  .addHelpText(
+    "after",
+    `\nExamples:\n  $ aep policy-set -m 0x...Module --max-daily 1000000000000000000 -n mykeystore\n`
+  )
   .requiredOption("-m, --module <address>", "BudgetPolicy module address (from aep modules)")
   .option("--max-per-tx <wei>", "Max per transaction (0 = unlimited)", "0")
   .option("--max-daily <wei>", "Max daily spend (0 = unlimited)", "0")
@@ -773,7 +935,7 @@ program
   .option("--daily-window <seconds>", "Daily window in seconds (0 = 86400)", "0")
   .option("--weekly-window <seconds>", "Weekly window in seconds (0 = 604800)", "0")
   .option("--full", "Use setCapsFull (set all params including per-task and windows)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (opts) => {
@@ -812,7 +974,11 @@ program
             chain: resolveCliChain(config),
           }
         );
-        console.log("Policy updated (full). Tx:", hash);
+        emitResult(
+          opts,
+          { command: "policy-set", module: opts.module, txHash: hash, mode: "full" },
+          [`Policy updated (full). Tx: ${hash}`]
+        );
       } else {
         const hash = await setBudgetCaps(
           opts.module as `0x${string}`,
@@ -823,7 +989,11 @@ program
             chain: resolveCliChain(config),
           }
         );
-        console.log("Policy updated. Tx:", hash);
+        emitResult(
+          opts,
+          { command: "policy-set", module: opts.module, txHash: hash, mode: "partial" },
+          [`Policy updated. Tx: ${hash}`]
+        );
       }
     } catch (err) {
       handleError(err, "policy-set");
@@ -840,7 +1010,7 @@ rateLimitCmd
   .requiredOption("-m, --module <address>", "RateLimitPolicy module address (from aep modules)")
   .requiredOption("--max-tx <n>", "Max transactions per window (0 = unlimited)")
   .requiredOption("--window-seconds <s>", "Window length in seconds")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (opts) => {
@@ -862,7 +1032,7 @@ rateLimitCmd
           chain: resolveCliChain(config),
         }
       );
-      console.log("Rate limit updated. Tx:", hash);
+      emitTxLine(opts, "rate-limit set", hash, `Rate limit updated. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "rate-limit set");
     }
@@ -877,7 +1047,7 @@ counterparty
   .description("Set reputation registry address on CounterpartyPolicy")
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
   .requiredOption("--registry <address>", "ReputationRegistry address")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (opts) => {
@@ -898,7 +1068,7 @@ counterparty
           chain: resolveCliChain(config),
         }
       );
-      console.log("Reputation registry set. Tx:", hash);
+      emitTxLine(opts, "counterparty set-reputation-registry", hash, `Reputation registry set. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty set-reputation-registry");
     }
@@ -910,7 +1080,7 @@ counterparty
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
   .requiredOption("--min <value>", "Minimum reputation value (int128)")
   .requiredOption("--decimals <n>", "Decimal places (0 = disabled)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (opts) => {
@@ -944,7 +1114,7 @@ counterparty
           chain: resolveCliChain(config),
         }
       );
-      console.log("Min reputation set. Tx:", hash);
+      emitTxLine(opts, "counterparty set-min-reputation", hash, `Min reputation set. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty set-min-reputation");
     }
@@ -955,7 +1125,7 @@ counterparty
   .description("Set identity registry address on CounterpartyPolicy")
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
   .requiredOption("--registry <address>", "IdentityRegistry address")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (opts) => {
@@ -976,7 +1146,7 @@ counterparty
           chain: resolveCliChain(config),
         }
       );
-      console.log("Identity registry set. Tx:", hash);
+      emitTxLine(opts, "counterparty set-identity-registry", hash, `Identity registry set. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty set-identity-registry");
     }
@@ -986,7 +1156,7 @@ counterparty
   .command("add-allow <address>")
   .description("Add address to allow list")
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (address, opts) => {
@@ -1003,7 +1173,7 @@ counterparty
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Added to allow list. Tx:", hash);
+      emitTxLine(opts, "counterparty add-allow", hash, `Added to allow list. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty add-allow");
     }
@@ -1013,7 +1183,7 @@ counterparty
   .command("remove-allow <address>")
   .description("Remove address from allow list")
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (address, opts) => {
@@ -1030,7 +1200,7 @@ counterparty
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Removed from allow list. Tx:", hash);
+      emitTxLine(opts, "counterparty remove-allow", hash, `Removed from allow list. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty remove-allow");
     }
@@ -1040,7 +1210,7 @@ counterparty
   .command("add-block <address>")
   .description("Add address to block list")
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (address, opts) => {
@@ -1057,7 +1227,7 @@ counterparty
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Added to block list. Tx:", hash);
+      emitTxLine(opts, "counterparty add-block", hash, `Added to block list. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty add-block");
     }
@@ -1067,7 +1237,7 @@ counterparty
   .command("remove-block <address>")
   .description("Remove address from block list")
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (address, opts) => {
@@ -1084,7 +1254,7 @@ counterparty
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Removed from block list. Tx:", hash);
+      emitTxLine(opts, "counterparty remove-block", hash, `Removed from block list. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty remove-block");
     }
@@ -1094,7 +1264,7 @@ counterparty
   .command("add-agent-allow <agentId>")
   .description("Add agent ID to agent allow list")
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (agentId, opts) => {
@@ -1111,7 +1281,7 @@ counterparty
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Added agent to allow list. Tx:", hash);
+      emitTxLine(opts, "counterparty add-agent-allow", hash, `Added agent to allow list. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty add-agent-allow");
     }
@@ -1121,7 +1291,7 @@ counterparty
   .command("clear-agent-allow")
   .description("Clear agent allow list")
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (opts) => {
@@ -1137,7 +1307,7 @@ counterparty
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Agent allow list cleared. Tx:", hash);
+      emitTxLine(opts, "counterparty clear-agent-allow", hash, `Agent allow list cleared. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty clear-agent-allow");
     }
@@ -1147,7 +1317,7 @@ counterparty
   .command("set-use-allow-list <true|false>")
   .description("Enable or disable address allow list")
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (value, opts) => {
@@ -1168,7 +1338,7 @@ counterparty
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Use allow list set. Tx:", hash);
+      emitTxLine(opts, "counterparty set-use-allow-list", hash, `Use allow list set. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty set-use-allow-list");
     }
@@ -1178,7 +1348,7 @@ counterparty
   .command("set-use-agent-allow-list <true|false>")
   .description("Enable or disable agent allow list")
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (value, opts) => {
@@ -1199,7 +1369,7 @@ counterparty
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Use agent allow list set. Tx:", hash);
+      emitTxLine(opts, "counterparty set-use-agent-allow-list", hash, `Use agent allow list set. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty set-use-agent-allow-list");
     }
@@ -1209,7 +1379,7 @@ counterparty
   .command("set-use-global-min-reputation <true|false>")
   .description("Enable or disable global min-reputation (verified agents only)")
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (value, opts) => {
@@ -1230,7 +1400,7 @@ counterparty
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Use global min-reputation set. Tx:", hash);
+      emitTxLine(opts, "counterparty set-use-global-min-reputation", hash, `Use global min-reputation set. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty set-use-global-min-reputation");
     }
@@ -1240,7 +1410,7 @@ counterparty
   .command("add-verified-agent <agentId>")
   .description("Add agent to verified set (for global min-reputation)")
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (agentIdStr, opts) => {
@@ -1257,7 +1427,7 @@ counterparty
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Added verified agent. Tx:", hash);
+      emitTxLine(opts, "counterparty add-verified-agent", hash, `Added verified agent. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty add-verified-agent");
     }
@@ -1267,7 +1437,7 @@ counterparty
   .command("remove-verified-agent <wallet>")
   .description("Remove wallet from verified set")
   .requiredOption("-m, --module <address>", "CounterpartyPolicy module address (from aep modules)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (wallet, opts) => {
@@ -1284,7 +1454,7 @@ counterparty
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("Removed verified agent. Tx:", hash);
+      emitTxLine(opts, "counterparty remove-verified-agent", hash, `Removed verified agent. Tx: ${hash}`);
     } catch (err) {
       handleError(err, "counterparty remove-verified-agent");
     }
@@ -1293,11 +1463,19 @@ counterparty
 program
   .command("execute")
   .description("Build, sign, and submit UserOp via bundler (execute call)")
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ aep execute -t 0x...To --bundler https://... -a 0x...SmartAccount
+  $ printf '0xabcd' | aep execute -t 0x...To -d - --bundler https://...
+`
+  )
   .requiredOption("-t, --to <address>", "Recipient address")
   .option("-v, --value <wei>", "Value in wei", "0")
-  .option("-d, --data <hex>", "Calldata (0x-prefixed hex)", "0x")
-  .option("-a, --account <address>", "Account address (or from config)")
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-d, --data <hex>", "Calldata (0x hex); use \"-\" to read from stdin", "0x")
+  .option("-a, --account <address>", "Smart account address (or from config)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .option("-b, --bundler <url>", "Bundler RPC URL (required)")
@@ -1305,22 +1483,32 @@ program
     const config = loadConfig();
     const account = (opts.account ?? config.account) as `0x${string}` | undefined;
     if (!account) {
-      console.error("Error: --account or deploy first to set config");
-      process.exit(1);
+      exitWithHint("No smart account: pass -a/--account or set config via deploy", [
+        "aep execute -a 0x...SmartAccount -t 0x...To -b <bundler_url>",
+      ]);
     }
     requireAddress(account, "account");
     requireAddress(opts.to, "recipient");
     const bundlerUrl = opts.bundler ?? config.bundlerRpcUrl;
     if (!bundlerUrl) {
-      console.error("Error: --bundler or bundlerRpcUrl in config required");
-      process.exit(1);
+      exitWithHint("Bundler URL required", [
+        "aep execute ... -b https://your-bundler.rpc",
+        "Or set bundlerRpcUrl in ~/.aep/config.json",
+      ]);
     }
     const signer = await requireSigner({
       privateKey: opts.privateKey,
       account: opts.keystoreAccount ?? config.foundryAccount,
     });
     const value = parseWei(opts.value, "value");
-    const data = (opts.data?.startsWith("0x") ? opts.data : `0x${opts.data}`) as `0x${string}`;
+    let rawData = opts.data ?? "0x";
+    if (rawData === "-") {
+      rawData = readStdinUtf8().trim();
+    }
+    if (rawData === "") {
+      rawData = "0x";
+    }
+    const data = (rawData.startsWith("0x") ? rawData : `0x${rawData}`) as `0x${string}`;
 
     try {
       const hash = await execute(
@@ -1334,7 +1522,7 @@ program
           chain: resolveCliChain(config),
         }
       );
-      console.log("UserOp hash:", hash);
+      emitResult(opts, { command: "execute", userOpHash: hash, smartAccount: account }, [`UserOp hash: ${hash}`]);
     } catch (err) {
       handleError(err, "execute");
     }
@@ -1343,24 +1531,54 @@ program
 program
   .command("resolve")
   .description("Resolve intent to execution plan (provider list)")
-  .requiredOption("-c, --capability <string>", "Capability description (e.g. image classification)")
-  .option("--max-per-unit <usd>", "Max price per unit in USD", "999999")
-  .option("--max-total <usd>", "Max total budget in USD", "999999")
-  .option("--min-reputation <0-1>", "Minimum reputation score", parseFloat)
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ aep resolve -c "image classification"
+  $ aep resolve --intent-file ./intent.json
+  $ cat intent.json | aep resolve --intent-file -
+`
+  )
+  .option("-c, --capability <string>", "Capability description (e.g. image classification); ignored if --intent-file is set")
+  .option(
+    "--intent-file <path>",
+    "Full intent JSON file (capability + budget + optional trust); use \"-\" to read stdin"
+  )
+  .option("--max-per-unit <usd>", "Max price per unit in USD (with -c only)", "999999")
+  .option("--max-total <usd>", "Max total budget in USD (with -c only)", "999999")
+  .option("--min-reputation <0-1>", "Minimum reputation score (with -c only)", parseFloat)
   .option("--index-path <path>", "Path to provider index", DEFAULT_INDEX_PATH)
   .option("--api-url <url>", "Call managed API instead of local resolver (x402 or MPP when paywalled)")
   .option("--premium", "Use /resolve/premium endpoint ($0.02) when --api-url is set")
   .action(async (opts) => {
     const config = loadConfig();
-    const intent = parseIntent({
-      capability: opts.capability,
-      budget: {
-        max_per_unit: opts.maxPerUnit ?? "999999",
-        max_total: opts.maxTotal ?? "999999",
-        currency: "USDC",
-      },
-      trust: opts.minReputation != null ? { min_reputation: opts.minReputation } : undefined,
-    });
+    let intent;
+    if (opts.intentFile) {
+      const pathOrDash = String(opts.intentFile);
+      if (pathOrDash !== "-" && rejectPathTraversal(pathOrDash)) {
+        console.error("Error: invalid --intent-file path (contains '..' or null bytes)");
+        process.exit(1);
+      }
+      const raw =
+        pathOrDash === "-" ? readStdinUtf8() : readFileSync(pathOrDash, "utf-8");
+      intent = parseIntent(JSON.parse(raw));
+    } else if (opts.capability) {
+      intent = parseIntent({
+        capability: opts.capability,
+        budget: {
+          max_per_unit: opts.maxPerUnit ?? "999999",
+          max_total: opts.maxTotal ?? "999999",
+          currency: "USDC",
+        },
+        trust: opts.minReputation != null ? { min_reputation: opts.minReputation } : undefined,
+      });
+    } else {
+      exitWithHint("Provide --capability (-c) or --intent-file", [
+        "aep resolve -c \"your capability\"",
+        "aep resolve --intent-file ./intent.json",
+      ]);
+    }
     try {
       if (opts.apiUrl) {
         const baseUrl = String(opts.apiUrl).replace(/\/$/, "");
@@ -1397,7 +1615,7 @@ program
           process.exit(1);
         }
         const plan = await res.json();
-        console.log(JSON.stringify(plan, null, 2));
+        console.log(wantsJson(opts) ? JSON.stringify(plan) : JSON.stringify(plan, null, 2));
       } else {
         const indexPath = opts.indexPath ?? config.indexPath ?? DEFAULT_INDEX_PATH;
         const graphPath = config.graphPath ?? DEFAULT_GRAPH_PATH;
@@ -1409,7 +1627,7 @@ program
             config.account && isAddress(config.account) ? (config.account as `0x${string}`) : undefined,
           graphPath,
         });
-        console.log(JSON.stringify(plan, null, 2));
+        console.log(wantsJson(opts) ? JSON.stringify(plan) : JSON.stringify(plan, null, 2));
       }
     } catch (err) {
       handleError(err, "resolve");
@@ -1419,6 +1637,14 @@ program
 program
   .command("provider probe")
   .description("Probe paid HTTP endpoint — x402 or MPP (on-demand health check)")
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ aep provider probe https://api.example.com/v1/task
+  $ aep provider probe --agent-id 123 --index-path ~/.aep/index
+`
+  )
   .argument("[url]", "x402 endpoint URL to probe")
   .option("--agent-id <id>", "Agent ID (lookup URL from index)")
   .option("--index-path <path>", "Path to provider index (for --agent-id)", DEFAULT_INDEX_PATH)
@@ -1427,12 +1653,13 @@ program
     const url = urlArg as string | undefined;
     const agentId = opts.agentId;
     if (!url && !agentId) {
-      console.error("Error: provide URL or --agent-id");
-      process.exit(1);
+      exitWithHint("URL or --agent-id required", [
+        "aep provider probe https://example.com/x402",
+        "aep provider probe --agent-id 123",
+      ]);
     }
     if (url && agentId) {
-      console.error("Error: provide URL or --agent-id, not both");
-      process.exit(1);
+      exitWithHint("Use either a URL or --agent-id, not both", ["aep provider probe --help"]);
     }
     let targetUrl: string;
     if (url) {
@@ -1494,8 +1721,10 @@ program
     const facilities = (monitorCfg.facilities ?? []) as `0x${string}`[];
     const slas = (monitorCfg.slas ?? []) as `0x${string}`[];
     if (accounts.length === 0 && facilities.length === 0 && slas.length === 0) {
-      console.error("Error: Set monitor.accounts, monitor.facilities, or monitor.slas in ~/.aep/config.json");
-      process.exit(1);
+      exitWithHint("No monitor targets in config", [
+        "Add monitor.accounts, monitor.facilities, or monitor.slas to ~/.aep/config.json",
+        "aep monitor --help",
+      ]);
     }
     const statePath = opts.statePath ?? config.monitor?.statePath ?? join(homedir(), ".aep", "monitor");
     validatePath(statePath, "state-path");
@@ -1521,6 +1750,14 @@ program
 program
   .command("graph sync")
   .description("Phase 4: Sync economic graph (payments, credit events)")
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ aep graph sync
+  $ aep graph sync --graph-path ~/.aep/graph -r https://sepolia.base.org
+`
+  )
   .option("--graph-path <path>", "Graph storage path", DEFAULT_GRAPH_PATH)
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
   .action(async (opts) => {
@@ -1529,8 +1766,10 @@ program
     validatePath(graphPath, "graph-path");
     const factoryAddress = config.factoryAddress;
     if (!factoryAddress) {
-      console.error("Error: factoryAddress in config required (deploy factory first)");
-      process.exit(1);
+      exitWithHint("factoryAddress missing from config", [
+        "Deploy AEPAccountFactory and set factoryAddress in ~/.aep/config.json",
+        "aep graph sync --help",
+      ]);
     }
     const chainId =
       config.chainId ?? DEFAULT_CHAIN_ID;
@@ -1547,10 +1786,23 @@ program
         slaFactoryAddress: config.slaFactoryAddress as `0x${string}` | undefined,
         usdcAddress: usdcForConfig(config),
       });
-      console.log(
-        `Graph sync: accounts=${result.accountsAdded} payments=${result.paymentsAdded} ` +
-          `userOps=${result.userOpsAdded} credit=${result.creditEventsAdded} ` +
-          `escrow=${result.escrowEventsAdded} splitter=${result.splitterEventsAdded}`
+      emitResult(
+        opts,
+        {
+          command: "graph sync",
+          accountsAdded: result.accountsAdded,
+          paymentsAdded: result.paymentsAdded,
+          userOpsAdded: result.userOpsAdded,
+          creditEventsAdded: result.creditEventsAdded,
+          escrowEventsAdded: result.escrowEventsAdded,
+          splitterEventsAdded: result.splitterEventsAdded,
+          slaEventsAdded: result.slaEventsAdded,
+        },
+        [
+          `Graph sync: accounts=${result.accountsAdded} payments=${result.paymentsAdded} ` +
+            `userOps=${result.userOpsAdded} credit=${result.creditEventsAdded} ` +
+            `escrow=${result.escrowEventsAdded} splitter=${result.splitterEventsAdded} sla=${result.slaEventsAdded}`,
+        ]
       );
     } catch (err) {
       handleError(err, "graph sync");
@@ -1714,10 +1966,19 @@ fleetCmd
 
 fleetCmd
   .command("freeze <id>")
-  .description("Freeze all accounts in fleet (requires PRIVATE_KEY, owner of all accounts)")
+  .description("Freeze all accounts in fleet (requires signer; owner of all accounts)")
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ aep fleet freeze myfleet -n mykeystore
+  $ aep fleet freeze myfleet --dry-run
+`
+  )
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
+  .option("--dry-run", "Print fleet accounts and RPC URL only; no transactions")
   .action(async (id, opts) => {
     const config = loadConfig();
     const fleets = config.fleets ?? {};
@@ -1726,12 +1987,32 @@ fleetCmd
       console.error(`Error: Fleet ${id} not found`);
       process.exit(1);
     }
+    const rpcUrl = opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC;
+    if (opts.dryRun) {
+      const human = [
+        `Dry run: would freeze ${fleet.accounts.length} smart account(s) via ${rpcUrl}`,
+        ...fleet.accounts.map((a) => `  ${a}`),
+      ];
+      emitResult(
+        opts,
+        {
+          command: "fleet freeze",
+          dryRun: true,
+          fleetId: id,
+          rpcUrl,
+          smartAccounts: fleet.accounts,
+        },
+        human
+      );
+      return;
+    }
     const signer = await requireSigner({
       privateKey: opts.privateKey,
       account: opts.keystoreAccount ?? loadConfig().foundryAccount,
     });
     const privateKey = signer.privateKey;
-    const rpcUrl = opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC;
+    const results: { account: string; txHash: string }[] = [];
+    const human: string[] = [];
     for (const account of fleet.accounts) {
       requireAddress(account, "account");
       try {
@@ -1740,13 +2021,19 @@ fleetCmd
           rpcUrl,
           chain: resolveCliChain(config),
         });
-        console.log(`Frozen ${account}: ${hash}`);
+        results.push({ account, txHash: hash });
+        human.push(`Frozen ${account}: ${hash}`);
       } catch (err) {
         console.error(`Failed to freeze ${account}:`, err instanceof Error ? err.message : String(err));
         process.exit(1);
       }
     }
-    console.log(`Fleet ${id}: all ${fleet.accounts.length} accounts frozen`);
+    human.push(`Fleet ${id}: all ${fleet.accounts.length} accounts frozen`);
+    emitResult(
+      opts,
+      { command: "fleet freeze", fleetId: id, results },
+      human
+    );
   });
 
 counterparty
@@ -1766,9 +2053,19 @@ counterparty
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log("count:", summary.count.toString());
-      console.log("summaryValue:", summary.summaryValue.toString());
-      console.log("summaryValueDecimals:", summary.summaryValueDecimals);
+      const payload = {
+        command: "counterparty reputation-summary",
+        agentId: opts.agentId,
+        registry,
+        count: summary.count.toString(),
+        summaryValue: summary.summaryValue.toString(),
+        summaryValueDecimals: summary.summaryValueDecimals,
+      };
+      emitResult(opts, payload, [
+        `count: ${payload.count}`,
+        `summaryValue: ${payload.summaryValue}`,
+        `summaryValueDecimals: ${payload.summaryValueDecimals}`,
+      ]);
     } catch (err) {
       handleError(err, "counterparty reputation-summary");
     }
@@ -1781,6 +2078,13 @@ const credit = program
 credit
   .command("create")
   .description("Create a credit facility")
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ aep credit create --lender 0x... --borrower 0x... --limit 1000000 --min-reputation 50 --borrower-agent-id 1 -n mykeystore
+`
+  )
   .requiredOption("--lender <address>", "Lender address")
   .requiredOption("--borrower <address>", "Borrower address")
   .requiredOption("--limit <amount>", "Credit limit (6 decimals)")
@@ -1791,14 +2095,16 @@ credit
   .option("--origination-fee <amount>", "Origination fee in token (6 decimals). Lender pays. 0 = no fee", "0")
   .option("--factory <address>", "CreditFacilityFactory address (or from config)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     const config = loadConfig();
     const factory = config.creditFacilityFactoryAddress ?? opts.factory;
     if (!factory) {
-      console.error("Error: --factory or creditFacilityFactoryAddress in config required");
-      process.exit(1);
+      exitWithHint("Credit facility factory required", [
+        "Set creditFacilityFactoryAddress in ~/.aep/config.json or pass --factory 0x...",
+        "aep credit create --help",
+      ]);
     }
     const erc = erc8004ForConfig(config);
     const token = (opts.token ?? usdcForConfig(config)) as string;
@@ -1832,8 +2138,11 @@ credit
         originationFee: parseWei(opts.originationFee ?? "0", "origination-fee"),
         chain: resolveCliChain(config),
       });
-      console.log("Facility:", facility);
-      console.log("Tx:", txHash);
+      emitResult(
+        opts,
+        { command: "credit create", facility, txHash },
+        [`Facility: ${facility}`, `Tx: ${txHash}`]
+      );
     } catch (err) {
       handleError(err, "credit create");
     }
@@ -1845,7 +2154,7 @@ credit
   .requiredOption("-f, --facility <address>", "Credit facility address")
   .requiredOption("-a, --amount <amount>", "Amount (6 decimals)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.facility, "facility");
@@ -1861,7 +2170,7 @@ credit
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "credit deposit", hash);
     } catch (err) {
       handleError(err, "credit deposit");
     }
@@ -1873,7 +2182,7 @@ credit
   .requiredOption("-f, --facility <address>", "Credit facility address")
   .requiredOption("-a, --amount <amount>", "Amount (6 decimals)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.facility, "facility");
@@ -1889,7 +2198,7 @@ credit
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "credit draw", hash);
     } catch (err) {
       handleError(err, "credit draw");
     }
@@ -1901,7 +2210,7 @@ credit
   .requiredOption("-f, --facility <address>", "Credit facility address")
   .requiredOption("-a, --amount <amount>", "Amount (6 decimals)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.facility, "facility");
@@ -1917,7 +2226,7 @@ credit
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "credit repay", hash);
     } catch (err) {
       handleError(err, "credit repay");
     }
@@ -1928,7 +2237,7 @@ credit
   .description("Lender freezes facility")
   .requiredOption("-f, --facility <address>", "Credit facility address")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.facility, "facility");
@@ -1944,7 +2253,7 @@ credit
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "credit freeze", hash);
     } catch (err) {
       handleError(err, "credit freeze");
     }
@@ -1955,7 +2264,7 @@ credit
   .description("Lender unfreezes facility")
   .requiredOption("-f, --facility <address>", "Credit facility address")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.facility, "facility");
@@ -1971,7 +2280,7 @@ credit
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "credit unfreeze", hash);
     } catch (err) {
       handleError(err, "credit unfreeze");
     }
@@ -1982,7 +2291,7 @@ credit
   .description("Declare facility default (after repayment deadline)")
   .requiredOption("-f, --facility <address>", "Credit facility address")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.facility, "facility");
@@ -1998,7 +2307,7 @@ credit
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "credit default", hash);
     } catch (err) {
       handleError(err, "credit default");
     }
@@ -2017,14 +2326,17 @@ credit
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log(JSON.stringify({
+      const payload = {
+        command: "credit state",
+        facility: opts.facility,
         limit: state.limit.toString(),
         drawn: state.drawn.toString(),
         balance: state.balance.toString(),
         frozen: state.frozen,
         defaulted: state.defaulted,
         repaymentDeadline: state.repaymentDeadline.toString(),
-      }, null, 2));
+      };
+      console.log(wantsJson(opts) ? JSON.stringify(payload) : JSON.stringify(payload, null, 2));
     } catch (err) {
       handleError(err, "credit state");
     }
@@ -2036,7 +2348,7 @@ credit
   .requiredOption("-f, --facility <address>", "Credit facility address")
   .requiredOption("-a, --amount <amount>", "Amount (6 decimals)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.facility, "facility");
@@ -2052,7 +2364,7 @@ credit
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "credit withdraw", hash);
     } catch (err) {
       handleError(err, "credit withdraw");
     }
@@ -2065,6 +2377,14 @@ const escrow = program
 escrow
   .command("create")
   .description("Create an escrow (single-amount or multi-milestone)")
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ aep escrow create --consumer 0x... --provider 0x... --provider-agent-id 1 --validator 0x... -n mykeystore
+  $ aep escrow create ... --milestone-amounts 1000000,2000000
+`
+  )
   .requiredOption("--consumer <address>", "Consumer address")
   .requiredOption("--provider <address>", "Provider address")
   .requiredOption("--provider-agent-id <id>", "Provider ERC-8004 agent ID")
@@ -2075,7 +2395,7 @@ escrow
   .option("--setup-fee <amount>", "Setup fee in token (6 decimals). Caller pays. 0 = no fee", "0")
   .option("--factory <address>", "ConditionalEscrowFactory address (or from config)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.consumer, "consumer");
@@ -2092,8 +2412,10 @@ escrow
     }
     const factory = config.escrowFactoryAddress ?? opts.factory;
     if (!factory) {
-      console.error("Error: --factory or escrowFactoryAddress in config required");
-      process.exit(1);
+      exitWithHint("Escrow factory required", [
+        "Set escrowFactoryAddress in ~/.aep/config.json or pass --factory 0x...",
+        "aep escrow create --help",
+      ]);
     }
     requireAddress(factory, "factory");
     const signer = await requireSigner({
@@ -2123,8 +2445,11 @@ escrow
         milestoneAmounts,
         chain: resolveCliChain(config),
       });
-      console.log("Escrow:", escrowAddr);
-      console.log("Tx:", txHash);
+      emitResult(
+        opts,
+        { command: "escrow create", escrow: escrowAddr, txHash },
+        [`Escrow: ${escrowAddr}`, `Tx: ${txHash}`]
+      );
     } catch (err) {
       handleError(err, "escrow create");
     }
@@ -2136,7 +2461,7 @@ escrow
   .requiredOption("-e, --escrow <address>", "Escrow address")
   .requiredOption("-a, --amount <amount>", "Amount (6 decimals)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.escrow, "escrow");
@@ -2152,7 +2477,7 @@ escrow
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "escrow fund", hash);
     } catch (err) {
       handleError(err, "escrow fund");
     }
@@ -2163,7 +2488,7 @@ escrow
   .description("Provider acknowledges escrow")
   .requiredOption("-e, --escrow <address>", "Escrow address")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.escrow, "escrow");
@@ -2179,7 +2504,7 @@ escrow
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "escrow acknowledge", hash);
     } catch (err) {
       handleError(err, "escrow acknowledge");
     }
@@ -2192,7 +2517,7 @@ escrow
   .requiredOption("--request-hash <hash>", "Validation request hash (0x...)")
   .option("--milestone-index <n>", "Milestone index (0 for legacy single-amount)", "0")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.escrow, "escrow");
@@ -2218,7 +2543,7 @@ escrow
           chain: resolveCliChain(config),
         }
       );
-      console.log("Tx:", hash);
+      emitTxLine(opts, "escrow submit-validation", hash);
     } catch (err) {
       handleError(err, "escrow submit-validation");
     }
@@ -2230,7 +2555,7 @@ escrow
   .requiredOption("-e, --escrow <address>", "Escrow address")
   .option("--milestone-index <n>", "Milestone index to release (0 for legacy single-amount)", "0")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.escrow, "escrow");
@@ -2252,7 +2577,7 @@ escrow
         milestoneIndex,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "escrow release", hash);
     } catch (err) {
       handleError(err, "escrow release");
     }
@@ -2263,7 +2588,7 @@ escrow
   .description("Consumer disputes escrow")
   .requiredOption("-e, --escrow <address>", "Escrow address")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.escrow, "escrow");
@@ -2279,7 +2604,7 @@ escrow
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "escrow dispute", hash);
     } catch (err) {
       handleError(err, "escrow dispute");
     }
@@ -2299,11 +2624,14 @@ escrow
         chain: resolveCliChain(config),
       });
       const stateNames = ["FUNDED", "IN_PROGRESS", "VALIDATING", "RELEASED", "DISPUTED"];
-      console.log(JSON.stringify({
+      const payload = {
+        command: "escrow state",
+        escrow: opts.escrow,
         state: stateNames[state.state] ?? state.state,
         amount: state.amount.toString(),
         requestHash: state.requestHash,
-      }, null, 2));
+      };
+      console.log(wantsJson(opts) ? JSON.stringify(payload) : JSON.stringify(payload, null, 2));
     } catch (err) {
       handleError(err, "escrow state");
     }
@@ -2321,7 +2649,7 @@ splitter
   .option("--token <address>", "Token address (default: USDC for config chain)")
   .option("--factory <address>", "RevenueSplitterFactory address (or from config)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     const config = loadConfig();
@@ -2329,8 +2657,10 @@ splitter
     requireAddress(token, "token");
     const factory = config.revenueSplitterFactoryAddress ?? opts.factory;
     if (!factory) {
-      console.error("Error: --factory or revenueSplitterFactoryAddress in config required");
-      process.exit(1);
+      exitWithHint("Revenue splitter factory required", [
+        "Set revenueSplitterFactoryAddress in ~/.aep/config.json or pass --factory 0x...",
+        "aep splitter create --help",
+      ]);
     }
     requireAddress(factory, "factory");
     const signer = await requireSigner({
@@ -2360,8 +2690,11 @@ splitter
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Splitter:", splitterAddr);
-      console.log("Tx:", txHash);
+      emitResult(
+        opts,
+        { command: "splitter create", splitter: splitterAddr, txHash },
+        [`Splitter: ${splitterAddr}`, `Tx: ${txHash}`]
+      );
     } catch (err) {
       handleError(err, "splitter create");
     }
@@ -2372,7 +2705,7 @@ splitter
   .description("Distribute revenue to recipients")
   .requiredOption("-s, --splitter <address>", "Revenue splitter address")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.splitter, "splitter");
@@ -2388,7 +2721,7 @@ splitter
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "splitter distribute", hash);
     } catch (err) {
       handleError(err, "splitter distribute");
     }
@@ -2407,11 +2740,14 @@ splitter
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log(JSON.stringify({
+      const payload = {
+        command: "splitter state",
+        splitter: opts.splitter,
         recipients: state.recipients,
         weights: state.weights.map((w) => w.toString()),
         balance: state.balance.toString(),
-      }, null, 2));
+      };
+      console.log(wantsJson(opts) ? JSON.stringify(payload) : JSON.stringify(payload, null, 2));
     } catch (err) {
       handleError(err, "splitter state");
     }
@@ -2433,7 +2769,7 @@ sla
   .option("--setup-fee <amount>", "Setup fee in stake token (6 decimals). Caller pays. 0 = no fee", "0")
   .option("--factory <address>", "SLAContractFactory address (or from config)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.provider, "provider");
@@ -2449,8 +2785,10 @@ sla
     }
     const factory = config.slaFactoryAddress ?? opts.factory;
     if (!factory) {
-      console.error("Error: --factory or slaFactoryAddress in config required");
-      process.exit(1);
+      exitWithHint("SLA factory required", [
+        "Set slaFactoryAddress in ~/.aep/config.json or pass --factory 0x...",
+        "aep sla create --help",
+      ]);
     }
     requireAddress(factory, "factory");
     const signer = await requireSigner({
@@ -2473,8 +2811,11 @@ sla
         setupFee: parseWei(opts.setupFee ?? "0", "setup-fee"),
         chain: resolveCliChain(config),
       });
-      console.log("SLA:", slaAddr);
-      console.log("Tx:", txHash);
+      emitResult(
+        opts,
+        { command: "sla create", sla: slaAddr, txHash },
+        [`SLA: ${slaAddr}`, `Tx: ${txHash}`]
+      );
     } catch (err) {
       handleError(err, "sla create");
     }
@@ -2485,7 +2826,7 @@ sla
   .description("Provider stakes")
   .requiredOption("-s, --sla <address>", "SLA contract address")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.sla, "sla");
@@ -2501,7 +2842,7 @@ sla
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "sla stake", hash);
     } catch (err) {
       handleError(err, "sla stake");
     }
@@ -2513,7 +2854,7 @@ sla
   .requiredOption("-s, --sla <address>", "SLA contract address")
   .requiredOption("--request-hash <hash>", "Validation request hash (0x...)")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.sla, "sla");
@@ -2533,7 +2874,7 @@ sla
           chain: resolveCliChain(config),
         }
       );
-      console.log("Tx:", hash);
+      emitTxLine(opts, "sla breach", hash);
     } catch (err) {
       handleError(err, "sla breach");
     }
@@ -2544,7 +2885,7 @@ sla
   .description("Provider unstakes")
   .requiredOption("-s, --sla <address>", "SLA contract address")
   .option("-r, --rpc <url>", "RPC URL", DEFAULT_RPC)
-  .option("--keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
+  .option("-n, --keystore-account <name>", "Foundry keystore account (env: AEP_KEYSTORE_ACCOUNT)")
   .option("-k, --private-key <key>", "Private key (env: PRIVATE_KEY; fallback, insecure)")
   .action(async (opts) => {
     requireAddress(opts.sla, "sla");
@@ -2560,7 +2901,7 @@ sla
         privateKey,
         chain: resolveCliChain(config),
       });
-      console.log("Tx:", hash);
+      emitTxLine(opts, "sla unstake", hash);
     } catch (err) {
       handleError(err, "sla unstake");
     }
@@ -2579,11 +2920,14 @@ sla
         rpcUrl: opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC,
         chain: resolveCliChain(config),
       });
-      console.log(JSON.stringify({
+      const payload = {
+        command: "sla state",
+        sla: opts.sla,
         staked: state.staked,
         breached: state.breached,
         balance: state.balance.toString(),
-      }, null, 2));
+      };
+      console.log(wantsJson(opts) ? JSON.stringify(payload) : JSON.stringify(payload, null, 2));
     } catch (err) {
       handleError(err, "sla state");
     }

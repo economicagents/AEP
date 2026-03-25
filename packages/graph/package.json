@@ -9,7 +9,13 @@
   },
   "bugs": "https://github.com/economicagents/AEP/issues",
   "homepage": "https://github.com/economicagents/AEP#readme",
-  "keywords": ["aep", "agent", "graph", "analytics", "credit-score"],
+  "keywords": [
+    "aep",
+    "agent",
+    "graph",
+    "analytics",
+    "credit-score"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -34,6 +40,7 @@
   },
   "dependencies": {
     "@economicagents/viem-rpc": "workspace:*",
+    "commander": "^12.1.0",
     "viem": "^2.47.5"
   },
   "optionalDependencies": {

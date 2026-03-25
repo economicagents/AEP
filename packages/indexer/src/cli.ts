@@ -2,12 +2,12 @@
 
 /**
  * CLI for AEP provider index sync.
- * Usage: npx aep-index sync [options]
  */
 
 import { join } from "path";
 import { homedir } from "os";
 import { existsSync, readFileSync } from "fs";
+import { Command } from "commander";
 import { rejectPathTraversal } from "@economicagents/sdk";
 import { syncIndex } from "./index.js";
 import { embedProviders } from "./embed.js";
@@ -52,17 +52,98 @@ function loadConfig(): Config {
   return {};
 }
 
-function getIndexPath(args: string[], config: Config): string {
-  const pathIndex = args.indexOf("--index-path");
-  return pathIndex >= 0 ? args[pathIndex + 1]! : config.indexPath ?? DEFAULT_INDEX_PATH;
-}
+const program = new Command();
 
-async function main() {
-  const args = process.argv.slice(2);
-  const command = args[0] ?? "sync";
-  const config = loadConfig();
+program
+  .name("aep-index")
+  .description("AEP provider index: sync ERC-8004 providers into ~/.aep/index (optional embed, Postgres migrate)")
+  .version("0.2.0")
+  .addHelpText(
+    "after",
+    `\nExamples:\n  $ aep-index sync\n  $ aep-index sync -r https://sepolia.base.org --index-path ~/.aep/index\n  $ aep-index embed --index-path ~/.aep/index\n  $ aep-index migrate\n`
+  );
 
-  if (command === "migrate") {
+program
+  .command("sync")
+  .description("Incremental sync from chain into local index (and optional x402 probe)")
+  .addHelpText(
+    "after",
+    `\nExamples:\n  $ aep-index sync\n  $ aep-index sync -r https://sepolia.base.org --chain-id 84532 --probe-x402\n`
+  )
+  .option("-r, --rpc <url>", "JSON-RPC URL", DEFAULT_RPC)
+  .option("--index-path <path>", "Index directory", DEFAULT_INDEX_PATH)
+  .option("--chain-id <id>", "Chain id (e.g. 84532 Base Sepolia, 8453 Base mainnet)")
+  .option("--probe-x402", "Probe x402 on discovered HTTP endpoints")
+  .action(async (opts) => {
+    const config = loadConfig();
+    const rpcUrl = opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC;
+    const indexPath = opts.indexPath ?? config.indexPath ?? DEFAULT_INDEX_PATH;
+    if (rejectPathTraversal(indexPath)) {
+      console.error("Error: invalid index-path (contains '..' or null bytes)");
+      process.exit(1);
+    }
+    const probeX402 = Boolean(opts.probeX402);
+    const identityRegistry = (config.identityRegistryAddress ?? IDENTITY_REGISTRY) as Address;
+    const reputationRegistry = (config.reputationRegistryAddress ?? REPUTATION_REGISTRY) as Address;
+
+    let chainId: number;
+    if (opts.chainId != null && opts.chainId !== "") {
+      chainId = parseInt(String(opts.chainId), 10);
+    } else {
+      chainId = config.chainId ?? DEFAULT_CHAIN_ID;
+    }
+    if (Number.isNaN(chainId) || chainId <= 0) {
+      console.error(
+        "Error: invalid chain-id (use e.g. 84532 for Base Sepolia, 8453 for Base mainnet)"
+      );
+      process.exit(1);
+    }
+
+    try {
+      const result = await syncIndex({
+        rpcUrl,
+        chainId,
+        identityRegistryAddress: identityRegistry,
+        reputationRegistryAddress: reputationRegistry,
+        indexPath,
+        probeX402,
+      });
+      console.log(`Sync complete: ${result.added} added, ${result.updated} updated`);
+    } catch (err) {
+      console.error("Error:", err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+program
+  .command("embed")
+  .description("Rebuild embeddings / search index for providers under index path")
+  .addHelpText("after", `\nExamples:\n  $ aep-index embed\n  $ aep-index embed --index-path ~/.aep/index\n`)
+  .option("--index-path <path>", "Index directory", DEFAULT_INDEX_PATH)
+  .action(async (opts) => {
+    const config = loadConfig();
+    const indexPath = opts.indexPath ?? config.indexPath ?? DEFAULT_INDEX_PATH;
+    if (rejectPathTraversal(indexPath)) {
+      console.error("Error: invalid index-path (contains '..' or null bytes)");
+      process.exit(1);
+    }
+    try {
+      const result = await embedProviders(indexPath);
+      console.log(`Index rebuild complete: ${result.indexed} providers indexed`);
+    } catch (err) {
+      console.error("Error:", err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+program
+  .command("migrate")
+  .description("Apply Postgres migrations (requires AEP_INDEX_DATABASE_URL or config indexDatabaseUrl)")
+  .addHelpText(
+    "after",
+    `\nExamples:\n  $ export AEP_INDEX_DATABASE_URL=postgres://...\n  $ aep-index migrate\n`
+  )
+  .action(async () => {
     if (!getIndexDatabaseUrl()) {
       console.error("Error: set AEP_INDEX_DATABASE_URL or indexDatabaseUrl in config to run migrations");
       process.exit(1);
@@ -76,69 +157,19 @@ async function main() {
       console.error("Error:", err instanceof Error ? err.message : String(err));
       process.exit(1);
     }
-    return;
-  }
+  });
 
-  if (command === "embed") {
-    const indexPath = getIndexPath(args, config);
-    if (rejectPathTraversal(indexPath)) {
-      console.error("Error: invalid index-path (contains '..' or null bytes)");
-      process.exit(1);
-    }
-    try {
-      const result = await embedProviders(indexPath);
-      console.log(`Index rebuild complete: ${result.indexed} providers indexed`);
-    } catch (err) {
-      console.error("Error:", err instanceof Error ? err.message : String(err));
-      process.exit(1);
-    }
-    return;
+async function main() {
+  let argv = process.argv.slice(2);
+  if (argv.length === 0) {
+    argv = ["sync"];
   }
-
-  if (command !== "sync") {
-    console.error("Usage: aep-index <sync|embed|migrate> [options]");
-    console.error("  sync    [--rpc <url>] [--index-path <path>] [--chain-id <id>] [--probe-x402]");
-    console.error("  embed   [--index-path <path>]");
-    console.error("  migrate  (requires DB URL: env or config indexDatabaseUrl)");
-    process.exit(1);
+  const first = argv[0];
+  const subcommands = new Set(["sync", "embed", "migrate", "-h", "--help", "-V", "--version"]);
+  if (first && !first.startsWith("-") && !subcommands.has(first)) {
+    argv = ["sync", ...argv];
   }
-
-  const rpcIndex = args.indexOf("--rpc");
-  const rpcUrl = rpcIndex >= 0 ? args[rpcIndex + 1] : config.rpcUrl ?? DEFAULT_RPC;
-  const indexPath = getIndexPath(args, config);
-  if (rejectPathTraversal(indexPath)) {
-    console.error("Error: invalid index-path (contains '..' or null bytes)");
-    process.exit(1);
-  }
-  const probeX402 = args.includes("--probe-x402");
-
-  const identityRegistry = (config.identityRegistryAddress ?? IDENTITY_REGISTRY) as Address;
-  const reputationRegistry = (config.reputationRegistryAddress ?? REPUTATION_REGISTRY) as Address;
-
-  const chainIdArg = args.indexOf("--chain-id");
-  let chainId =
-    chainIdArg >= 0 && args[chainIdArg + 1]
-      ? parseInt(args[chainIdArg + 1]!, 10)
-      : config.chainId ?? DEFAULT_CHAIN_ID;
-  if (Number.isNaN(chainId) || chainId <= 0) {
-    console.error("Error: invalid chain-id (use e.g. 84532 for Base Sepolia, 8453 for Base mainnet)");
-    process.exit(1);
-  }
-
-  try {
-    const result = await syncIndex({
-      rpcUrl,
-      chainId,
-      identityRegistryAddress: identityRegistry,
-      reputationRegistryAddress: reputationRegistry,
-      indexPath,
-      probeX402,
-    });
-    console.log(`Sync complete: ${result.added} added, ${result.updated} updated`);
-  } catch (err) {
-    console.error("Error:", err instanceof Error ? err.message : String(err));
-    process.exit(1);
-  }
+  await program.parseAsync(argv, { from: "user" });
 }
 
 main();

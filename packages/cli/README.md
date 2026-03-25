@@ -48,13 +48,18 @@ Required keys: `factoryAddress`, `rpcUrl`, `account` (after deploy). Optional: `
 ## Usage
 
 ```bash
-aep deploy --factory 0x...
+aep deploy -f 0x...Factory -n <keystore_name>
 aep policy-set -m <module> --max-per-tx 1000000 --max-daily 5000000
-aep check-policy -a 500000 -t 0xRecipient
-aep resolve '{"capability":"...","maxTotal":"1000000"}'
+aep check-policy -c 0xSmartAccount -a 500000 -t 0xRecipient
+aep resolve -c "capability description"
+aep resolve --intent-file ./intent.json
+aep --json balance -a 0x...   # machine-readable stdout
+export AEP_KEYSTORE_PASSWORD_FILE=/secure/path   # or pass on each run (see aep --help)
 aep fleet list
 aep monitor
 ```
+
+Non-interactive signers: set `AEP_KEYSTORE_ACCOUNT`, `FOUNDRY_PASSWORD` or `AEP_KEYSTORE_PASSWORD`, or `AEP_KEYSTORE_PASSWORD_FILE` (see global `aep --help`), or `PRIVATE_KEY` (not recommended).
 
 ## Build & test
 

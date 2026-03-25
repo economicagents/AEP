@@ -2,12 +2,12 @@
 
 /**
  * CLI for AEP economic graph sync.
- * Usage: npx aep-graph sync [options]
  */
 
 import { join } from "path";
 import { homedir } from "os";
 import { existsSync, readFileSync } from "fs";
+import { Command } from "commander";
 import { syncGraph } from "./index.js";
 import type { Address } from "viem";
 
@@ -49,64 +49,91 @@ function loadConfig(): Config {
   return {};
 }
 
-async function main() {
-  const args = process.argv.slice(2);
-  const command = args[0] ?? "sync";
-  const config = loadConfig();
+const program = new Command();
 
-  if (command !== "sync") {
-    console.error("Usage: aep-graph <sync> [options]");
-    console.error("  sync  [--rpc <url>] [--graph-path <path>] [--chain-id <id>]");
-    process.exit(1);
-  }
+program
+  .name("aep-graph")
+  .description("AEP economic graph: sync on-chain events into local SQLite graph store")
+  .version("0.2.0")
+  .addHelpText(
+    "after",
+    `\nExamples:\n  $ aep-graph sync\n  $ aep-graph sync -r https://sepolia.base.org --graph-path ~/.aep/graph\n`
+  );
 
-  const rpcIndex = args.indexOf("--rpc");
-  const rpcUrl = rpcIndex >= 0 ? args[rpcIndex + 1] : config.rpcUrl ?? DEFAULT_RPC;
-  const pathIndex = args.indexOf("--graph-path");
-  const graphPath =
-    pathIndex >= 0 ? args[pathIndex + 1]! : config.graphPath ?? DEFAULT_GRAPH_PATH;
+program
+  .command("sync")
+  .description("Incremental graph sync (accounts, payments, credit, escrow, splitter, SLA)")
+  .option("-r, --rpc <url>", "JSON-RPC URL", DEFAULT_RPC)
+  .option("--graph-path <path>", "Graph database path", DEFAULT_GRAPH_PATH)
+  .option("--chain-id <id>", "Chain id (overrides config when set)")
+  .action(async (opts) => {
+    const config = loadConfig();
+    const rpcUrl = opts.rpc ?? config.rpcUrl ?? DEFAULT_RPC;
+    const graphPath = opts.graphPath ?? config.graphPath ?? DEFAULT_GRAPH_PATH;
 
-  const factoryAddress = (config.aepAccountFactoryAddress ?? config.factoryAddress) as Address | undefined;
-  if (!factoryAddress || factoryAddress === "0x0000000000000000000000000000000000000000") {
-    console.error(
-      "Error: factoryAddress or aepAccountFactoryAddress required in config (deploy factory first)"
-    );
-    process.exit(1);
-  }
+    const factoryAddress = (config.aepAccountFactoryAddress ?? config.factoryAddress) as Address | undefined;
+    if (!factoryAddress || factoryAddress === "0x0000000000000000000000000000000000000000") {
+      console.error(
+        "Error: factoryAddress or aepAccountFactoryAddress required in config (deploy factory first)"
+      );
+      process.exit(1);
+    }
 
-  const chainIdArg = args.indexOf("--chain-id");
-  let chainId =
-    chainIdArg >= 0 && args[chainIdArg + 1]
-      ? parseInt(args[chainIdArg + 1]!, 10)
-      : config.chainId ??
+    let chainId: number;
+    if (opts.chainId != null && opts.chainId !== "") {
+      chainId = parseInt(String(opts.chainId), 10);
+    } else {
+      chainId =
+        config.chainId ??
         parseInt(process.env.AEP_CHAIN_ID ?? process.env.BASE_SEPOLIA_CHAIN_ID ?? "84532", 10);
-  if (Number.isNaN(chainId) || chainId <= 0) {
-    console.error("Error: invalid chain-id (use e.g. 84532 for Base Sepolia, 8453 for Base mainnet)");
-    process.exit(1);
-  }
+    }
+    if (Number.isNaN(chainId) || chainId <= 0) {
+      console.error("Error: invalid chain-id (use e.g. 84532 for Base Sepolia, 8453 for Base mainnet)");
+      process.exit(1);
+    }
 
-  try {
-    const result = await syncGraph({
-      rpcUrl,
-      chainId,
-      graphPath,
-      aepAccountFactoryAddress: factoryAddress,
-      entryPointAddress: (config.entryPointAddress ?? DEFAULT_ENTRYPOINT) as Address,
-      creditFacilityFactoryAddress: config.creditFacilityFactoryAddress as Address | undefined,
-      escrowFactoryAddress: config.escrowFactoryAddress as Address | undefined,
-      revenueSplitterFactoryAddress: config.revenueSplitterFactoryAddress as Address | undefined,
-      slaFactoryAddress: config.slaFactoryAddress as Address | undefined,
-      usdcAddress: (config.usdcAddress ?? USDC_BASE_SEPOLIA) as Address,
-    });
-    console.log(
-      `Graph sync complete: accounts=${result.accountsAdded} payments=${result.paymentsAdded} ` +
-        `userOps=${result.userOpsAdded} credit=${result.creditEventsAdded} ` +
-        `escrow=${result.escrowEventsAdded} splitter=${result.splitterEventsAdded} sla=${result.slaEventsAdded}`
-    );
-  } catch (err) {
-    console.error("Error:", err instanceof Error ? err.message : String(err));
-    process.exit(1);
+    try {
+      const result = await syncGraph({
+        rpcUrl,
+        chainId,
+        graphPath,
+        aepAccountFactoryAddress: factoryAddress,
+        entryPointAddress: (config.entryPointAddress ?? DEFAULT_ENTRYPOINT) as Address,
+        creditFacilityFactoryAddress: config.creditFacilityFactoryAddress as Address | undefined,
+        escrowFactoryAddress: config.escrowFactoryAddress as Address | undefined,
+        revenueSplitterFactoryAddress: config.revenueSplitterFactoryAddress as Address | undefined,
+        slaFactoryAddress: config.slaFactoryAddress as Address | undefined,
+        usdcAddress: (config.usdcAddress ?? USDC_BASE_SEPOLIA) as Address,
+      });
+      console.log(
+        `Graph sync complete: accounts=${result.accountsAdded} payments=${result.paymentsAdded} ` +
+          `userOps=${result.userOpsAdded} credit=${result.creditEventsAdded} ` +
+          `escrow=${result.escrowEventsAdded} splitter=${result.splitterEventsAdded} sla=${result.slaEventsAdded}`
+      );
+    } catch (err) {
+      console.error("Error:", err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+async function main() {
+  let argv = process.argv.slice(2);
+  if (argv.length === 0) {
+    argv = ["sync"];
   }
+  const first = argv[0];
+  if (
+    first &&
+    !first.startsWith("-") &&
+    first !== "sync" &&
+    first !== "-h" &&
+    first !== "--help" &&
+    first !== "-V" &&
+    first !== "--version"
+  ) {
+    argv = ["sync", ...argv];
+  }
+  await program.parseAsync(argv, { from: "user" });
 }
 
 main();
