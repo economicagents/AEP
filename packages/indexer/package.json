@@ -1,6 +1,6 @@
 {
   "name": "@economicagents/indexer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Provider discovery index for AEP intent resolution - crawls ERC-8004, indexes capabilities and pricing",
   "license": "Apache-2.0",
   "repository": {

@@ -1,6 +1,6 @@
 {
   "name": "@economicagents/viem-rpc",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Shared viem HTTP/WebSocket JSON-RPC transport helper for AEP packages",
   "license": "Apache-2.0",
   "repository": {

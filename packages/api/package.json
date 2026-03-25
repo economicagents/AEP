@@ -1,6 +1,6 @@
 {
   "name": "@economicagents/api",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "REST API for AEP intent resolver, analytics, fleet, probe",
   "license": "Apache-2.0",
   "repository": {

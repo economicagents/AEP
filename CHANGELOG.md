@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **RateLimitPolicy:** `setLimits` now reverts with `RateLimitPolicyInvalidWindow` when `maxTxPerWindow > 0` and `windowSeconds == 0` (audit L-4). Existing mainnet factory/account/factory addresses unchanged; operators using `RateLimitPolicy` deploy new module instances to pick up the guard.
 
+## [0.2.0] — 2026-03-25
+
+### Added
+
+- **MPP / Tempo session paywall:** optional `AEP_PAYWALL_BACKEND=mpp` on the REST API (`mppx`); SDK helpers (`interceptMpp402Response`, `fetchWithMppPolicyCheck`, Tempo chain exports, `resolveTempoChainId`); CLI `aep resolve --api-url` MPP client path; indexer probe **`paymentKind`** (x402 vs mpp). See **`docs/guides/monetization.md`** and **`skills/aep-mpp/SKILL.md`**.
+
+### Changed
+
+- **viem** (workspace) bumped for canonical **`tempo`** / **`tempoModerato`** chain definitions; **`mppx`** dependency on **sdk**, **api**, **cli**.
+
 ## [0.1.0] — 2026-03-19
 
 ### Added
@@ -49,5 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Smart contract security review (AI-assisted, post-remediation). See audit-report.md.
 
-[Unreleased]: https://github.com/economicagents/AEP/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/economicagents/AEP/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/economicagents/AEP/releases/tag/v0.2.0
 [0.1.0]: https://github.com/economicagents/AEP/releases/tag/v0.1.0
