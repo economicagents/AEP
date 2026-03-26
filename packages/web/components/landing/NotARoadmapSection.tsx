@@ -7,7 +7,7 @@ import { githubBlobPath } from "@/lib/github";
 const comparison = [
   { others: "1 contract and a roadmap", aep: "10+ audited smart contracts" },
   { others: "SDK announced, not shipped", aep: "Full TypeScript SDK and CLI on npm" },
-  { others: "API waitlist", aep: "Live REST API" },
+  { others: "API gated beta", aep: "Live REST API" },
   { others: "Single feature", aep: "Accounts, resolution, relationships, credit scoring, analytics" },
   { others: "No agent tooling", aep: "15+ MCP tools ready for any agent framework" },
   { others: "Unaudited", aep: "AI-assisted security review with remediated findings (not a substitute for a firm audit)" },

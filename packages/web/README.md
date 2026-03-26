@@ -76,6 +76,6 @@ cd packages/web && npx wrangler secret put AI_GATEWAY_API_KEY
 
 Or set **Variables and Secrets** in the dashboard. Use [`wrangler deploy --keep-vars`](https://developers.cloudflare.com/workers/wrangler/commands/#deploy) when needed so dashboard vars are not dropped.
 
-**Workers Builds:** Put `NEXT_PUBLIC_*` in **Build variables and secrets**; put `AI_GATEWAY_API_KEY`, Upstash, and Turnstile secrets in **runtime** for the Worker.
+**Workers Builds:** Put `NEXT_PUBLIC_*` in **Build variables and secrets**; put `AI_GATEWAY_API_KEY`, Upstash, and Turnstile in **runtime** for the Worker.
 
 Local development: set `AI_GATEWAY_API_KEY` in `.env` (not committed). Vercel-hosted deploys can use [OIDC / keyless](https://vercel.com/docs/ai-gateway/authentication) for the gateway; Cloudflare should use an explicit **`AI_GATEWAY_API_KEY`**.

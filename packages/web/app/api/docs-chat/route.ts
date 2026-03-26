@@ -1,5 +1,4 @@
 import type { GatewayLanguageModelOptions } from "@ai-sdk/gateway";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { createGateway, generateText } from "ai";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -9,6 +8,7 @@ import {
   buildRetrievedContext,
   formatContextForPrompt,
 } from "@/lib/docs-chat-retrieval";
+import { resolveEnvString } from "@/lib/cf-resolve-env";
 
 const DEFAULT_MODEL = "openai/gpt-4o-mini";
 
@@ -28,24 +28,6 @@ const BodySchema = z.object({
   messages: z.array(MessageSchema).min(1).max(MAX_MESSAGES),
   turnstileToken: z.string().max(5000).optional(),
 });
-
-function envStringFromProcess(key: string): string | undefined {
-  const v = process.env[key]?.trim();
-  return v || undefined;
-}
-
-async function resolveEnvString(key: string): Promise<string | undefined> {
-  const fromProcess = envStringFromProcess(key);
-  if (fromProcess) return fromProcess;
-  try {
-    const { env } = await getCloudflareContext({ async: true });
-    const v = env[key as keyof typeof env];
-    if (typeof v === "string" && v.trim()) return v.trim();
-  } catch {
-    // Not running on Cloudflare Worker (e.g. Node `next start`)
-  }
-  return undefined;
-}
 
 async function getGatewayApiKey(): Promise<string | undefined> {
   return resolveEnvString("AI_GATEWAY_API_KEY");

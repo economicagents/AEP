@@ -554,22 +554,6 @@ html[data-theme="dark"] .prose .markdown-alert-important {
   opacity: 0.85;
 }
 
-/* Waitlist success — gentle fade-in */
-@keyframes waitlist-success-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.waitlist-success-enter {
-  opacity: 0;
-  animation: waitlist-success-in 0.35s var(--ease-out-quart) forwards;
-}
-
 /* Footer nav links — subtle underline on hover */
 .landing-footer-nav a {
   position: relative;
@@ -605,8 +589,7 @@ html[data-theme="dark"] .prose .markdown-alert-important {
   .landing-card-hover:hover {
     transform: none !important;
   }
-  .hero-entrance,
-  .waitlist-success-enter {
+  .hero-entrance {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
   }

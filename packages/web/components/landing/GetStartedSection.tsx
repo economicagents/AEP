@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { WaitlistFlow } from "@/components/WaitlistFlow";
 import { GitHubLogo, DiscordLogo } from "@/components/ProviderLogos";
 import { DitherVisual } from "@/components/DitherVisual";
 import { BookOpenIcon } from "@/components/icons";
 import { GITHUB_REPO } from "@/lib/github";
+
+const PUBLIC_API_URL = "https://api.economicagents.org";
 
 export function GetStartedSection() {
   return (
@@ -43,12 +44,10 @@ export function GetStartedSection() {
               className="mt-3 max-w-lg text-sm leading-relaxed mx-auto"
               style={{ color: "var(--foreground)", opacity: 0.6 }}
             >
-              The protocol is live on testnet. Join the waitlist for mainnet
-              access, or start building now with the SDK and documentation.
+              AEP is live on Base Sepolia and Base mainnet. The hosted reference
+              API is operational — use the quick start, SDK, and docs to integrate,
+              or call the API directly.
             </p>
-            <div className="mt-6">
-              <WaitlistFlow inline />
-            </div>
             <div className="mt-6 flex flex-col sm:flex-row sm:flex-wrap justify-center gap-3 sm:gap-4 text-sm">
               <Link
                 href="/docs/getting-started/quickstart"
@@ -56,6 +55,14 @@ export function GetStartedSection() {
               >
                 <BookOpenIcon className="size-4 shrink-0" />
                 Quick start guide
+              </Link>
+              <Link
+                href={PUBLIC_API_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-landing btn-landing-secondary inline-flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                Public API
               </Link>
               <Link
                 href={GITHUB_REPO}

@@ -14,8 +14,7 @@
     "deploy": "pnpm run build:cf && wrangler deploy",
     "types": "wrangler types",
     "start": "next start",
-    "lint": "eslint",
-    "test": "echo 'No tests'"
+    "lint": "eslint"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^3.0.77",
