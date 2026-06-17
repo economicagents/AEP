@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { DOC_NAV } from "@/lib/docs-nav";
-import { useTheme } from "@/components/ThemeProvider";
+import { findNavMatch } from "@/lib/docs-nav";
 
 function formatLabel(label: string): string {
   return label
@@ -28,24 +27,19 @@ function getBreadcrumbItems(pathname: string): Array<{ href: string; label: stri
     return items;
   }
 
-  for (const section of DOC_NAV) {
-    const match = section.items.find((item) => {
-      const itemPath = item.href.replace(/^\/docs\/?/, "").replace(/\/$/, "");
-      return path === itemPath || path.startsWith(itemPath + "/");
+  const navMatch = findNavMatch(pathname);
+  if (navMatch) {
+    items.push({
+      href: navMatch.section.href ?? navMatch.section.items[0]?.href ?? "/docs",
+      label: navMatch.section.label,
+      isCurrent: false,
     });
-    if (match) {
-      items.push({
-        href: section.href ?? section.items[0]?.href ?? "/docs",
-        label: section.label,
-        isCurrent: false,
-      });
-      items.push({
-        href: match.href,
-        label: formatLabel(match.label),
-        isCurrent: true,
-      });
-      return items;
-    }
+    items.push({
+      href: navMatch.item.href,
+      label: formatLabel(navMatch.item.label),
+      isCurrent: true,
+    });
+    return items;
   }
 
   const parts = path.split("/");
@@ -61,16 +55,12 @@ function getBreadcrumbItems(pathname: string): Array<{ href: string; label: stri
 export function DocBreadcrumb() {
   const pathname = usePathname();
   const items = getBreadcrumbItems(pathname ?? "");
-  const { resolved } = useTheme();
-  const isDark = resolved === "dark";
-  const textColor = isDark ? "#e2e8f0" : "var(--foreground)";
-  const currentColor = isDark ? "#e2e8f0" : "var(--accent, var(--foreground))";
 
   return (
     <nav
       aria-label="Breadcrumb"
-      className="doc-breadcrumb flex items-center gap-1.5 text-xs mb-4 sm:mb-5"
-      style={{ color: textColor, opacity: 0.85 }}
+      className="doc-breadcrumb mb-4 flex items-center gap-1.5 text-xs sm:mb-5"
+      style={{ color: "var(--foreground)", opacity: 0.85 }}
     >
       {items.map((item, i) => (
         <span key={item.href + i} className="flex items-center gap-1.5">
@@ -83,13 +73,7 @@ export function DocBreadcrumb() {
             </span>
           )}
           {item.isCurrent ? (
-            <span
-              className="doc-breadcrumb-current px-2 py-0.5 rounded-md font-medium"
-              style={{
-                backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "var(--docs-bg-subtle)",
-                color: currentColor,
-              }}
-            >
+            <span className="doc-breadcrumb-current rounded-md px-2 py-0.5 font-medium">
               {item.label}
             </span>
           ) : item.href === "/" ? (
