@@ -2,14 +2,15 @@
 
 import { Accordion } from "@/components/Accordion";
 import { EthLogo, X402Logo } from "@/components/ProviderLogos";
-import { DitherVisual } from "@/components/DitherVisual";
+import { LandingSection, LandingSectionHeader } from "./LandingSection";
+import { LandingPanel } from "./LandingPanel";
 
 const standards = [
   {
     id: "erc4337",
     title: (
       <span className="inline-flex items-center gap-2">
-        <EthLogo size={14} className="opacity-70 shrink-0" />
+        <EthLogo size={14} className="shrink-0 opacity-70" />
         ERC-4337
       </span>
     ),
@@ -20,7 +21,7 @@ const standards = [
     id: "erc8004",
     title: (
       <span className="inline-flex items-center gap-2">
-        <EthLogo size={14} className="opacity-70 shrink-0" />
+        <EthLogo size={14} className="shrink-0 opacity-70" />
         ERC-8004
       </span>
     ),
@@ -31,7 +32,7 @@ const standards = [
     id: "x402",
     title: (
       <span className="inline-flex items-center gap-2">
-        <X402Logo size={14} className="opacity-70 shrink-0" />
+        <X402Logo size={14} className="shrink-0 opacity-70" />
         x402
       </span>
     ),
@@ -42,46 +43,27 @@ const standards = [
 
 export function StandardsSection() {
   return (
-    <section className="border-divider">
-      <div className="mx-auto w-full max-w-5xl section-padding-x py-8 sm:py-12 md:py-16">
-        <h2
-          className="text-2xl sm:text-3xl font-semibold tracking-tight text-center"
-          style={{ color: "var(--foreground)" }}
+    <LandingSection defer>
+      <LandingSectionHeader
+        title="Built on open standards"
+        lead="AEP sits on top of existing infrastructure; it doesn't replace it. The protocol builds on three standards and works with any agent framework or payment rail."
+      />
+      <div className="mx-auto mt-8 max-w-xl">
+        <LandingPanel
+          ditherVariant="plasma"
+          ditherHeight={192}
+          minHeightClass="min-h-[12rem]"
+          contentClassName="landing-panel-content--accordion"
         >
-          Built on open standards
-        </h2>
-        <p
-          className="mt-4 max-w-xl mx-auto text-center text-sm leading-relaxed"
-          style={{ color: "var(--foreground)", opacity: 0.6 }}
-        >
-          AEP sits on top of existing infrastructure; it doesn&apos;t replace
-          it. The protocol builds on three standards and works with any
-          agent framework or payment rail.
-        </p>
-        <div className="mt-6 sm:mt-8 max-w-xl mx-auto flex border-outline rounded-sm overflow-hidden" style={{ backgroundColor: "var(--background)" }}>
-          <div
-            className="shrink-0 w-3 sm:w-4 self-stretch overflow-hidden opacity-40 min-h-[12rem]"
-            aria-hidden
-          >
-            <DitherVisual
-              width={16}
-              height={192}
-              variant="plasma"
-              speed={0}
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="flex-1 min-w-0 px-4 sm:px-5 py-2">
-            <Accordion
-              items={standards.map((s) => ({
-                id: s.id,
-                title: s.title,
-                content: s.content,
-              }))}
-            />
-          </div>
-        </div>
+          <Accordion
+            items={standards.map((s) => ({
+              id: s.id,
+              title: s.title,
+              content: s.content,
+            }))}
+          />
+        </LandingPanel>
       </div>
-    </section>
+    </LandingSection>
   );
 }
