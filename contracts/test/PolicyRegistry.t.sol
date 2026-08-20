@@ -78,6 +78,55 @@ contract PolicyRegistryTest is Test {
         assertTrue(registry.hasTemplate(keccak256("after")));
     }
 
+    function test_HasTemplateFalseForUnknown() public view {
+        assertFalse(registry.hasTemplate(keccak256("missing")));
+    }
+
+    function test_RegisterTemplateDuplicateReverts() public {
+        bytes32 id = keccak256("dup");
+        vm.startPrank(owner);
+        registry.registerTemplate(id, 1, 2, 3);
+        vm.expectRevert(PolicyRegistry.PolicyRegistryTemplateExists.selector);
+        registry.registerTemplate(id, 4, 5, 6);
+        vm.stopPrank();
+    }
+
+    function test_RegisterTemplateFullAndGetAllFields() public {
+        bytes32 id = keccak256("full");
+        vm.prank(owner);
+        registry.registerTemplateFull(id, 100, 200, 300, 50, 3600, 86400, 604800);
+
+        (
+            uint256 maxPerTx,
+            uint256 maxDaily,
+            uint256 maxWeekly,
+            uint256 maxPerTask,
+            uint256 taskWindowSeconds,
+            uint256 dailyWindowSeconds,
+            uint256 weeklyWindowSeconds
+        ) = registry.getTemplate(id);
+
+        assertEq(maxPerTx, 100);
+        assertEq(maxDaily, 200);
+        assertEq(maxWeekly, 300);
+        assertEq(maxPerTask, 50);
+        assertEq(taskWindowSeconds, 3600);
+        assertEq(dailyWindowSeconds, 86400);
+        assertEq(weeklyWindowSeconds, 604800);
+    }
+
+    function test_DeployFromTemplateAppliesPerTaskCaps() public {
+        bytes32 id = keccak256("per-task");
+        vm.prank(owner);
+        registry.registerTemplateFull(id, 10, 100, 500, 25, 1800, 0, 0);
+
+        address account = factory.deployFromTemplate(address(registry), id, owner, bytes32(uint256(99)));
+        BudgetPolicy budgetPolicy = BudgetPolicy(payable(AEPAccount(payable(account)).policyModules(0)));
+
+        assertEq(budgetPolicy.maxPerTask(), 25);
+        assertEq(budgetPolicy.taskWindowSeconds(), 1800);
+    }
+
     function _getModules(address account) internal view returns (address[] memory) {
         uint256 len = AEPAccount(payable(account)).getPolicyModulesLength();
         address[] memory mods = new address[](len);

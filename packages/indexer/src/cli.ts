@@ -57,7 +57,7 @@ const program = new Command();
 program
   .name("aep-index")
   .description("AEP provider index: sync ERC-8004 providers into ~/.aep/index (optional embed, Postgres migrate)")
-  .version("0.2.0")
+  .version("0.3.0")
   .addHelpText(
     "after",
     `\nExamples:\n  $ aep-index sync\n  $ aep-index sync -r https://sepolia.base.org --index-path ~/.aep/index\n  $ aep-index embed --index-path ~/.aep/index\n  $ aep-index migrate\n`

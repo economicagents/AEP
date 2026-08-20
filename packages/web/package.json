@@ -7,7 +7,7 @@
     "dither-image": "tsx scripts/dither-image.ts",
     "generate-og": "tsx scripts/generate-og-image.ts",
     "generate-profile-avatar": "tsx scripts/generate-profile-avatar.ts",
-    "dev": "next dev --hostname 127.0.0.1",
+    "dev": "portless run --name aep-web next dev --hostname 127.0.0.1",
     "build": "tsx scripts/generate-docs-content.ts && next build",
     "build:cf": "pnpm run build && npx opennextjs-cloudflare build",
     "preview": "pnpm run build:cf && wrangler dev",

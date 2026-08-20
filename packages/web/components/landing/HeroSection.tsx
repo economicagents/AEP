@@ -26,7 +26,7 @@ export function HeroSection() {
           />
         </div>
         <div
-          className="absolute left-0 bottom-0 opacity-[0.07]"
+          className="absolute bottom-0 left-0 opacity-[0.07]"
           style={{
             width: "clamp(215px, 28vw, 355px)",
             height: "clamp(215px, 28vw, 355px)",
@@ -45,11 +45,8 @@ export function HeroSection() {
         </div>
       </div>
 
-      <div className="relative z-10 mx-auto max-w-4xl pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-12 pb-10 sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))] sm:pt-20 sm:pb-16 md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))] md:pt-24 md:pb-20 text-center">
-        <h1
-          className="hero-entrance hero-entrance-delay-0 text-[clamp(1.75rem,5vw,2.75rem)] sm:text-4xl md:text-[2.75rem] font-semibold tracking-tight leading-[1.15]"
-          style={{ color: "var(--foreground)" }}
-        >
+      <div className="landing-hero-inner section-padding-x">
+        <h1 className="hero-title hero-entrance hero-entrance-delay-0">
           Economic agents that manage
           <br />
           their own money need
@@ -57,18 +54,13 @@ export function HeroSection() {
           financial controls
         </h1>
 
-        <div className="hero-entrance hero-entrance-delay-1 mt-5 max-w-lg mx-auto">
-          <p
-            className="text-[clamp(1rem,2.5vw,1.125rem)] leading-relaxed"
-            style={{ color: "var(--foreground)", opacity: 0.7 }}
-          >
-            AEP gives every economic agent a smart account with spending
-            limits, automatic cost optimization, and economic relationships
-            with other agents. All of it enforced onchain.
-          </p>
-        </div>
+        <p className="hero-lead hero-entrance hero-entrance-delay-1">
+          AEP gives every economic agent a smart account with spending limits,
+          automatic cost optimization, and economic relationships with other
+          agents. All of it enforced onchain.
+        </p>
 
-        <div className="hero-entrance hero-entrance-delay-2 mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+        <div className="hero-cta-row hero-entrance hero-entrance-delay-2">
           <Link
             href="/docs/getting-started/quickstart"
             className="btn-landing btn-landing-primary"

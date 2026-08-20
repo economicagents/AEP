@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.23;
 
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {IPolicyModule} from "../interfaces/IPolicyModule.sol";
 import {IERC8004Identity} from "../interfaces/IERC8004Identity.sol";
 import {IERC8004Reputation} from "../interfaces/IERC8004Reputation.sol";
@@ -12,14 +11,13 @@ import {PaymentDecoder} from "../libraries/PaymentDecoder.sol";
  * @title CounterpartyPolicy
  * @notice Enforces allow/block lists, optional ERC-8004 agent allowlist, and min-reputation thresholds.
  */
-contract CounterpartyPolicy is IPolicyModule, Initializable {
+contract CounterpartyPolicy is IPolicyModule {
     error CounterpartyPolicyAllowListFull();
     error CounterpartyPolicyAgentListFull();
     error CounterpartyPolicyAgentAlreadyInList();
     error CounterpartyPolicyVerifiedListFull();
     error CounterpartyPolicyZeroIdentityRegistry();
     error CounterpartyPolicyNotOwner();
-    error CounterpartyPolicyAlreadyInitialized();
     error CounterpartyPolicyNotAccount();
     error CounterpartyPolicyZeroOwner();
     error CounterpartyPolicyZeroAccount();
@@ -70,15 +68,6 @@ contract CounterpartyPolicy is IPolicyModule, Initializable {
     }
 
     constructor(address _account, address _owner) {
-        if (_account == address(0)) revert CounterpartyPolicyZeroAccount();
-        if (_owner == address(0)) revert CounterpartyPolicyZeroOwner();
-        account = _account;
-        owner = _owner;
-    }
-
-    /// @dev Policy modules must be deployed via factory or initialize called atomically in same tx as deployment.
-    function initialize(address _account, address _owner) external initializer {
-        if (account != address(0)) revert CounterpartyPolicyAlreadyInitialized();
         if (_account == address(0)) revert CounterpartyPolicyZeroAccount();
         if (_owner == address(0)) revert CounterpartyPolicyZeroOwner();
         account = _account;
