@@ -94,6 +94,53 @@ contract PaymentDecoderTest is Test {
         assertEq(info.recipients[1], makeAddr("r2"));
     }
 
+    function test_DecodeExecuteWithApprove() public {
+        address dest = makeAddr("token");
+        address spender = makeAddr("spender");
+        uint256 amount = 1.5e6;
+        bytes memory inner = abi.encodeWithSignature("approve(address,uint256)", spender, amount);
+        bytes memory callData = abi.encodeWithSignature("execute(address,uint256,bytes)", dest, 0, inner);
+
+        PaymentDecoder.PaymentInfo memory info = helper.decode(callData);
+        assertEq(info.totalAmount, amount);
+        assertEq(info.recipients.length, 1);
+        assertEq(info.recipients[0], spender);
+    }
+
+    function test_DecodeExecuteWithIncreaseAllowance() public {
+        address dest = makeAddr("token");
+        address spender = makeAddr("spender");
+        uint256 addedValue = 0.25e6;
+        bytes memory inner = abi.encodeWithSignature("increaseAllowance(address,uint256)", spender, addedValue);
+        bytes memory callData = abi.encodeWithSignature("execute(address,uint256,bytes)", dest, 0, inner);
+
+        PaymentDecoder.PaymentInfo memory info = helper.decode(callData);
+        assertEq(info.totalAmount, addedValue);
+        assertEq(info.recipients.length, 1);
+        assertEq(info.recipients[0], spender);
+    }
+
+    function test_DecodeExecuteBatchWithApprove() public {
+        address[] memory dests = new address[](2);
+        dests[0] = makeAddr("token1");
+        dests[1] = makeAddr("token2");
+        uint256[] memory values = new uint256[](2);
+        values[0] = 0;
+        values[1] = 0;
+        bytes[] memory funcs = new bytes[](2);
+        funcs[0] = abi.encodeWithSignature("approve(address,uint256)", makeAddr("spender1"), 0.4e6);
+        funcs[1] = abi.encodeWithSignature("increaseAllowance(address,uint256)", makeAddr("spender2"), 0.6e6);
+
+        bytes memory callData =
+            abi.encodeWithSignature("executeBatch(address[],uint256[],bytes[])", dests, values, funcs);
+        PaymentDecoder.PaymentInfo memory info = helper.decode(callData);
+
+        assertEq(info.totalAmount, 1e6);
+        assertEq(info.recipients.length, 2);
+        assertEq(info.recipients[0], makeAddr("spender1"));
+        assertEq(info.recipients[1], makeAddr("spender2"));
+    }
+
     function test_DecodeEmptyReturnsZero() public view {
         bytes memory callData = "";
         PaymentDecoder.PaymentInfo memory info = helper.decode(callData);

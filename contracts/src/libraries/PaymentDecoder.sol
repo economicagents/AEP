@@ -10,6 +10,8 @@ library PaymentDecoder {
     bytes4 constant EXECUTE_BATCH_SELECTOR = bytes4(keccak256("executeBatch(address[],uint256[],bytes[])"));
     bytes4 constant TRANSFER_SELECTOR = bytes4(keccak256("transfer(address,uint256)"));
     bytes4 constant TRANSFER_FROM_SELECTOR = bytes4(keccak256("transferFrom(address,address,uint256)"));
+    bytes4 constant APPROVE_SELECTOR = bytes4(keccak256("approve(address,uint256)"));
+    bytes4 constant INCREASE_ALLOWANCE_SELECTOR = bytes4(keccak256("increaseAllowance(address,uint256)"));
 
     struct PaymentInfo {
         uint256 totalAmount;
@@ -39,6 +41,16 @@ library PaymentDecoder {
                     info.totalAmount = amount;
                     info.recipients = new address[](1);
                     info.recipients[0] = to;
+                } else if (innerSelector == APPROVE_SELECTOR) {
+                    (address spender, uint256 amount) = abi.decode(_slice(data, 4), (address, uint256));
+                    info.totalAmount = amount;
+                    info.recipients = new address[](1);
+                    info.recipients[0] = spender;
+                } else if (innerSelector == INCREASE_ALLOWANCE_SELECTOR) {
+                    (address spender, uint256 addedValue) = abi.decode(_slice(data, 4), (address, uint256));
+                    info.totalAmount = addedValue;
+                    info.recipients = new address[](1);
+                    info.recipients[0] = spender;
                 } else {
                     info.totalAmount = value;
                     info.recipients = new address[](1);
@@ -66,6 +78,14 @@ library PaymentDecoder {
                         (, address to, uint256 amount) = abi.decode(_slice(f, 4), (address, address, uint256));
                         info.totalAmount += amount;
                         info.recipients[i] = to;
+                    } else if (innerSelector == APPROVE_SELECTOR) {
+                        (address spender, uint256 amount) = abi.decode(_slice(f, 4), (address, uint256));
+                        info.totalAmount += amount;
+                        info.recipients[i] = spender;
+                    } else if (innerSelector == INCREASE_ALLOWANCE_SELECTOR) {
+                        (address spender, uint256 addedValue) = abi.decode(_slice(f, 4), (address, uint256));
+                        info.totalAmount += addedValue;
+                        info.recipients[i] = spender;
                     } else {
                         info.totalAmount += values.length > 0 ? values[i] : 0;
                         info.recipients[i] = dests[i];
