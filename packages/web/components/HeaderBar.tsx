@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ThemeToggle } from "./ThemeToggle";
-import { GitHubLogo, DiscordLogo } from "./ProviderLogos";
+import { GitHubLogo } from "./ProviderLogos";
 import { GITHUB_REPO } from "@/lib/github";
 
 export function HeaderBar() {
@@ -64,16 +64,6 @@ export function HeaderBar() {
           >
             <GitHubLogo size={16} />
           </Link>
-          <span
-            role="button"
-            aria-label="Discord"
-            title="Coming soon"
-            onClick={(e) => e.preventDefault()}
-            className="cursor-pointer min-h-[44px] min-w-[44px] p-2 sm:p-0.5 sm:min-h-0 sm:min-w-0 opacity-70 hover:opacity-100 transition-opacity focus:outline-none inline-flex items-center justify-center touch-manipulation [-webkit-tap-highlight-color:transparent]"
-            style={{ color: "var(--foreground)" }}
-          >
-            <DiscordLogo size={16} />
-          </span>
           <ThemeToggle />
         </div>
       </nav>

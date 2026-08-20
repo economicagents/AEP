@@ -204,10 +204,10 @@ Index stored at `~/.aep/index/` by default. Sync builds an FTS5 (BM25) search in
 Run the AEP MCP server for agent budget management and intent resolution:
 
 ```bash
-cd packages/mcp && pnpm run build && node dist/index.js
+npx @economicagents/mcp@0.2.0
 ```
 
-Or add to Cursor/IDE MCP config. Tools: `get_balance`, `get_policy_state`, `set_budget_caps`, `resolve_intent`, `get_analytics`, `get_credit_score`, `get_recommendations`, `fleet_summary`, `fleet_accounts`, `fleet_alerts`, `credit_state`, `escrow_state`, `splitter_state`, `sla_state`. Requires `~/.aep/config.json`; `PRIVATE_KEY` for `set_budget_caps`.
+Or add to Cursor/IDE MCP config (`npx -y @economicagents/mcp@0.2.0`). From a clone: `cd packages/mcp && pnpm run build && node dist/index.js`. Tools: `get_balance`, `get_policy_state`, `set_budget_caps`, `resolve_intent`, `get_analytics`, `get_credit_score`, `get_recommendations`, `fleet_summary`, `fleet_accounts`, `fleet_alerts`, `credit_state`, `escrow_state`, `splitter_state`, `sla_state`. Requires `~/.aep/config.json`; `PRIVATE_KEY` for `set_budget_caps`.
 
 ### REST API
 
@@ -215,7 +215,7 @@ Or add to Cursor/IDE MCP config. Tools: `get_balance`, `get_policy_state`, `set_
 cd packages/api && pnpm run build && node dist/index.js
 ```
 
-Port 3847 (override: `PORT`). Endpoints: POST /resolve, POST /resolve/premium, GET /analytics/*, GET /analytics/pro/*, GET /fleet/:id/summary|accounts|alerts, POST /probe, POST /graphql. x402 paywall when `AEP_TREASURY_ADDRESS` set.
+Port 3847 (override: `PORT`). Endpoints: POST /resolve, POST /resolve/premium, GET /analytics/*, GET /analytics/pro/*, GET /fleet/:id/summary|accounts|alerts, POST /probe, POST /graphql. x402 paywall when `AEP_TREASURY_ADDRESS` set. Hosted reference at `https://api.economicagents.org` is **offline** (HTTP 521) as of August 2026 — self-host.
 
 ---
 
@@ -348,7 +348,7 @@ forge test --match-contract SLAContractTest
 ## Best practices
 
 - **Bring your own RPC:** You supply JSON-RPC URLs (public, dedicated, or paid) via config and env — nothing in the protocol depends on a specific vendor.
-- **Optional reference API:** A public deployment of the resolution stack is at **https://api.economicagents.org**; self-hosting remains fully supported (see [Deployment](docs/guides/deployment.md)).
+- **Optional reference API:** A public deployment of the resolution stack was planned at **https://api.economicagents.org** — as of August 2026 it returns **HTTP 521** (offline). **Self-host** from `packages/api` or use CLI `aep resolve --api-url` against your instance (see [Deployment](docs/guides/deployment.md)).
 - **Forkable references:** ERC-4337 core is vendored from eth-infinitism; avoid coupling integrations to proprietary account infra.
 - **Config:** Factory address required for `deploy` / `address`; deploy the factory first.
 - **Kill switch:** `aep freeze` blocks user operations; use if you suspect key compromise ([Incident playbook](docs/INCIDENT-RESPONSE-PLAYBOOK.md)).
@@ -361,7 +361,7 @@ Also published at [economicagents.org/docs](https://economicagents.org/docs) (or
 
 **Integration & operations**
 
-- [Quick Start](docs/getting-started/quickstart.md) — First deploy in minutes
+- [Quick Start](docs/getting-started/quickstart.md) — Deploy with `npx @economicagents/cli` (no Foundry clone)
 - [Cookbook](docs/COOKBOOK.md) — Policies, integration, relationships, fleet, monitor
 - [Deployment](docs/guides/deployment.md) — Sepolia, mainnet, validation, local services
 - [Architecture](docs/ARCHITECTURE.md) — Account, modules, factory, `validateUserOp`

@@ -4,11 +4,20 @@ Command-line interface for the Agent Economic Protocol (AEP): deploy accounts, p
 
 ## Install
 
+**npm (registry 0.2.0):**
+
+```bash
+npx @economicagents/cli@0.2.0 --help
+npm install -g @economicagents/cli@0.2.0
+```
+
+**From monorepo:**
+
 ```bash
 pnpm add -g @economicagents/cli
 ```
 
-The `aep` binary is added to your PATH.
+The `aep` binary is added to your PATH when installed globally.
 
 **From a local clone** of [economicagents/AEP](https://github.com/economicagents/AEP): `cd packages/cli && pnpm run build`, then run `node dist/cli.js` or `pnpm exec aep` from the repo root.
 

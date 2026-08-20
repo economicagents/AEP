@@ -23,7 +23,22 @@ ln -s /path/to/AEP/skills/aep-relationships ~/.openclaw/skills/aep-relationships
 
 ## Cursor (MCP)
 
-MCP tools are provided by the AEP MCP server. Add to `~/.cursor/mcp.json`:
+MCP tools are provided by **`@economicagents/mcp`** on npm (registry **0.2.0**). Add to `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "aep": {
+      "command": "npx",
+      "args": ["-y", "@economicagents/mcp@0.2.0"]
+    }
+  }
+}
+```
+
+Skills provide additional context for agents; the MCP server exposes the tools (`get_balance`, `get_policy_state`, `set_budget_caps`, `resolve_intent`, etc.). Full tool list: [MCP reference](../reference/mcp).
+
+### From monorepo (contributors)
 
 ```json
 {
@@ -36,19 +51,21 @@ MCP tools are provided by the AEP MCP server. Add to `~/.cursor/mcp.json`:
 }
 ```
 
-Skills provide additional context for agents; the MCP server exposes the tools (`get_balance`, `get_policy_state`, `set_budget_caps`, `resolve_intent`, etc.).
+Build first: `cd packages/mcp && pnpm run build`.
 
 ## Install AEP CLI
 
-Most skills require the AEP CLI:
+Most skills require the AEP CLI. Prefer npx (no global install):
 
 ```bash
-pnpm add -g @economicagents/cli
+npx @economicagents/cli@0.2.0 --help
 ```
 
-Set `PRIVATE_KEY` for deploy, policy-set, and execute operations.
+Or: `npm install -g @economicagents/cli@0.2.0`
 
-## Next Steps
+Set `PRIVATE_KEY` or `AEP_KEYSTORE_ACCOUNT` for deploy, policy-set, and execute operations.
 
-- [Available Skills](skills/available) — Full list
-- [aep-budget](skills/aep-budget) — Budget management
+## Next steps
+
+- [Available skills](skills/available) — Full list
+- [aep-budget](../skills/aep-budget) — Budget management

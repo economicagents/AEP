@@ -11,17 +11,20 @@ import {
 import { LandingPanel } from "./LandingPanel";
 
 const comparison = [
-  { others: "1 contract and a roadmap", aep: "10+ audited smart contracts" },
-  { others: "SDK announced, not shipped", aep: "Full TypeScript SDK and CLI on npm" },
-  { others: "API gated beta", aep: "Live REST API" },
+  { others: "1 contract and a roadmap", aep: "10+ shipped smart contracts" },
+  { others: "SDK announced, not shipped", aep: "TypeScript SDK and CLI on npm" },
+  {
+    others: "API gated beta",
+    aep: "Self-hostable REST API (hosted reference offline)",
+  },
   {
     others: "Single feature",
     aep: "Accounts, resolution, relationships, credit scoring, analytics",
   },
-  { others: "No agent tooling", aep: "15+ MCP tools ready for any agent framework" },
+  { others: "No agent tooling", aep: "15+ MCP tools via npx @economicagents/mcp" },
   {
     others: "Unaudited",
-    aep: "AI-assisted security review with remediated findings (not a substitute for a firm audit)",
+    aep: "AI-assisted internal review; remediations in 0.3.0 (not a firm audit)",
   },
 ];
 
@@ -31,7 +34,7 @@ export function NotARoadmapSection() {
       <LandingContentNarrow>
         <LandingSectionHeader
           title="Not a roadmap"
-          lead="Everything listed on this page is built, tested, and audited. The full protocol passed an independent security review with zero critical, high, or medium severity findings. What you see here is shipped, not a whitepaper."
+          lead="Everything listed on this page is built and tested in this repository — shipped code, not a whitepaper. Smart contracts had an AI-assisted internal security review (August 2026) with remediations in v0.3.0; that is not a substitute for a third-party firm audit before high-value mainnet use."
         />
 
         <div className="mt-8 sm:mt-10">

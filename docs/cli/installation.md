@@ -1,20 +1,41 @@
 # CLI Installation
 
-Install and configure the AEP CLI for account deployment, policy management, and operations.
+Install and configure the AEP CLI for account deployment, policy management, and UserOp execution.
 
-## Install
+## Install (npm / npx)
+
+**Registry version:** `@economicagents/cli` **0.2.0** on npm (August 2026). This repo's `main` is **0.3.0** — use `@0.2.0` for the current registry, or `@latest` after publish.
+
+### Run without installing
 
 ```bash
-pnpm add -g @economicagents/cli
+npx @economicagents/cli@0.2.0 --help
+npx @economicagents/cli@0.2.0 deploy --help
 ```
 
-From monorepo: `cd packages/cli && pnpm run build` then add `dist/cli.js` to PATH or run via `node dist/cli.js`.
+### Global install
+
+```bash
+npm install -g @economicagents/cli@0.2.0
+# then: aep --help
+```
+
+### From monorepo (contributors)
+
+```bash
+cd packages/cli && pnpm run build
+node dist/cli.js --help
+```
+
+## Quick start
+
+See [Getting started — Quick start](getting-started/quickstart) — deploy against the published factory with `npx`, no Foundry clone required.
 
 ## Configuration
 
 Config file: `~/.aep/config.json`. Override path: `AEP_CONFIG_PATH`. Chain override: `AEP_CHAIN_ID`.
 
-### Required Keys (after deploy)
+### Required keys (after deploy)
 
 | Key | Description |
 |-----|-------------|
@@ -23,7 +44,7 @@ Config file: `~/.aep/config.json`. Override path: `AEP_CONFIG_PATH`. Chain overr
 | `account` | Deployed AEP account address |
 | `owner` | Owner address (set on deploy) |
 
-### Optional Keys
+### Optional keys
 
 | Key | Description |
 |-----|-------------|
@@ -38,16 +59,16 @@ Config file: `~/.aep/config.json`. Override path: `AEP_CONFIG_PATH`. Chain overr
 | `monitor` | On-chain monitor config |
 | `fleets` | Fleet definitions |
 
-### Validate Config
+### Validate config
 
 ```bash
-aep config validate
+npx @economicagents/cli@0.2.0 config validate
 ```
 
-## Environment Variables
+## Environment variables
 
 | Variable | Description |
-|---------|-------------|
+|----------|-------------|
 | `AEP_KEYSTORE_ACCOUNT` | Foundry keystore account (preferred; run `cast wallet import aep --interactive`) |
 | `FOUNDRY_PASSWORD` | Keystore password (for non-interactive use) |
 | `PRIVATE_KEY` | Private key fallback (insecure; emits warning) |
@@ -55,7 +76,7 @@ aep config validate
 | `AEP_CHAIN_ID` | Chain ID (84532 Base Sepolia, 8453 Base) |
 | `AEP_RPC_URL` | Override RPC URL |
 
-## Next Steps
+## Next steps
 
-- [Commands Reference](cli/commands) — Full command list
-- [Quick Start](getting-started/quickstart) — Deploy your first account
+- [Commands reference](cli/commands) — Full command list
+- [Quick start](getting-started/quickstart) — Deploy your first account
