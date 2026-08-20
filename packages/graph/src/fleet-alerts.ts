@@ -6,10 +6,13 @@
 import { createPublicClient, parseAbiItem, isAddress } from "viem";
 import { transportFromRpcUrl } from "@economicagents/viem-rpc";
 import { base, baseSepolia } from "viem/chains";
-import type { Address } from "viem";
+import type { Address, Log } from "viem";
 import { getDatabase } from "./store.js";
 
-const CHUNK_SIZE = 9999n;
+/** Base public RPCs (e.g. sepolia.base.org) cap eth_getLogs to 2000 blocks. */
+const CHUNK_SIZE = 2000n;
+const GET_LOGS_MAX_RETRIES = 3;
+const GET_LOGS_RETRY_BASE_MS = 500;
 const DEFAULT_ENTRYPOINT = "0x0000000071727De22E5E9d8BAf0edAc6f37da032" as const;
 const DEFAULT_BLOCK_RANGE = 50_000;
 
@@ -29,6 +32,38 @@ export interface GetFleetAlertsOptions {
   entryPointAddress?: Address;
   /** Chain ID (84532 Base Sepolia, 8453 Base mainnet). Default 84532. */
   chainId?: number;
+}
+
+function isRateLimitError(error: unknown): boolean {
+  if (typeof error === "object" && error !== null) {
+    const record = error as { message?: unknown; details?: unknown; shortMessage?: unknown };
+    for (const value of [record.message, record.details, record.shortMessage]) {
+      if (typeof value === "string" && value.toLowerCase().includes("rate limit")) {
+        return true;
+      }
+    }
+  }
+  return String(error).toLowerCase().includes("rate limit");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getLogsWithRetry(fetchLogs: () => Promise<Log[]>): Promise<Log[]> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= GET_LOGS_MAX_RETRIES; attempt++) {
+    try {
+      return await fetchLogs();
+    } catch (error) {
+      lastError = error;
+      if (!isRateLimitError(error) || attempt === GET_LOGS_MAX_RETRIES) {
+        throw error;
+      }
+      await sleep(GET_LOGS_RETRY_BASE_MS * (attempt + 1));
+    }
+  }
+  throw lastError;
 }
 
 export async function getFleetAlerts(
@@ -98,12 +133,14 @@ export async function getFleetAlerts(
     for (let start = BigInt(fromBlock); start <= toBlock; start += CHUNK_SIZE) {
       const end =
         start + CHUNK_SIZE > BigInt(toBlock) ? BigInt(toBlock) : start + CHUNK_SIZE;
-      const logs = await client.getLogs({
-        address: normalized as Address[],
-        event: parseAbiItem("event Frozen(bool frozen)"),
-        fromBlock: start,
-        toBlock: end,
-      });
+      const logs = await getLogsWithRetry(() =>
+        client.getLogs({
+          address: normalized as Address[],
+          event: parseAbiItem("event Frozen(bool frozen)"),
+          fromBlock: start,
+          toBlock: end,
+        })
+      );
       for (const log of logs) {
         const args = (log as { args?: { frozen?: boolean } }).args;
         addAlert({
@@ -123,12 +160,14 @@ export async function getFleetAlerts(
     for (let start = BigInt(fromBlock); start <= toBlock; start += CHUNK_SIZE) {
       const end =
         start + CHUNK_SIZE > BigInt(toBlock) ? BigInt(toBlock) : start + CHUNK_SIZE;
-      const logs = await client.getLogs({
-        address: normalized as Address[],
-        event: parseAbiItem("event PolicyRecordSpendFailed(address indexed module)"),
-        fromBlock: start,
-        toBlock: end,
-      });
+      const logs = await getLogsWithRetry(() =>
+        client.getLogs({
+          address: normalized as Address[],
+          event: parseAbiItem("event PolicyRecordSpendFailed(address indexed module)"),
+          fromBlock: start,
+          toBlock: end,
+        })
+      );
       for (const log of logs) {
         const args = (log as { args?: { module?: Address } }).args;
         addAlert({
@@ -148,12 +187,14 @@ export async function getFleetAlerts(
     for (let start = BigInt(fromBlock); start <= toBlock; start += CHUNK_SIZE) {
       const end =
         start + CHUNK_SIZE > BigInt(toBlock) ? BigInt(toBlock) : start + CHUNK_SIZE;
-      const logs = await client.getLogs({
-        address: facilityAddresses as Address[],
-        event: parseAbiItem("event Frozen(bool frozen)"),
-        fromBlock: start,
-        toBlock: end,
-      });
+      const logs = await getLogsWithRetry(() =>
+        client.getLogs({
+          address: facilityAddresses as Address[],
+          event: parseAbiItem("event Frozen(bool frozen)"),
+          fromBlock: start,
+          toBlock: end,
+        })
+      );
       for (const log of logs) {
         const args = (log as { args?: { frozen?: boolean } }).args;
         addAlert({
@@ -173,12 +214,14 @@ export async function getFleetAlerts(
     for (let start = BigInt(fromBlock); start <= toBlock; start += CHUNK_SIZE) {
       const end =
         start + CHUNK_SIZE > BigInt(toBlock) ? BigInt(toBlock) : start + CHUNK_SIZE;
-      const logs = await client.getLogs({
-        address: facilityAddresses as Address[],
-        event: parseAbiItem("event DefaultDeclared(address indexed borrower)"),
-        fromBlock: start,
-        toBlock: end,
-      });
+      const logs = await getLogsWithRetry(() =>
+        client.getLogs({
+          address: facilityAddresses as Address[],
+          event: parseAbiItem("event DefaultDeclared(address indexed borrower)"),
+          fromBlock: start,
+          toBlock: end,
+        })
+      );
       for (const log of logs) {
         const args = (log as { args?: { borrower?: Address } }).args;
         addAlert({
@@ -198,14 +241,16 @@ export async function getFleetAlerts(
     for (let start = BigInt(fromBlock); start <= toBlock; start += CHUNK_SIZE) {
       const end =
         start + CHUNK_SIZE > BigInt(toBlock) ? BigInt(toBlock) : start + CHUNK_SIZE;
-      const logs = await client.getLogs({
-        address: slaAddresses as Address[],
-        event: parseAbiItem(
-          "event BreachDeclared(address indexed consumer, bytes32 indexed requestHash, uint256 amount)"
-        ),
-        fromBlock: start,
-        toBlock: end,
-      });
+      const logs = await getLogsWithRetry(() =>
+        client.getLogs({
+          address: slaAddresses as Address[],
+          event: parseAbiItem(
+            "event BreachDeclared(address indexed consumer, bytes32 indexed requestHash, uint256 amount)"
+          ),
+          fromBlock: start,
+          toBlock: end,
+        })
+      );
       for (const log of logs) {
         const args = (log as {
           args?: { consumer?: Address; requestHash?: `0x${string}`; amount?: bigint };
@@ -231,14 +276,16 @@ export async function getFleetAlerts(
     for (let start = BigInt(fromBlock); start <= toBlock; start += CHUNK_SIZE) {
       const end =
         start + CHUNK_SIZE > BigInt(toBlock) ? BigInt(toBlock) : start + CHUNK_SIZE;
-      const logs = await client.getLogs({
-        address: entryPoint,
-        event: parseAbiItem(
-          "event UserOperationRevertReason(bytes32 indexed userOpHash, address indexed sender, uint256 nonce, bytes revertReason)"
-        ),
-        fromBlock: start,
-        toBlock: end,
-      });
+      const logs = await getLogsWithRetry(() =>
+        client.getLogs({
+          address: entryPoint,
+          event: parseAbiItem(
+            "event UserOperationRevertReason(bytes32 indexed userOpHash, address indexed sender, uint256 nonce, bytes revertReason)"
+          ),
+          fromBlock: start,
+          toBlock: end,
+        })
+      );
       for (const log of logs) {
         const args = (log as {
           args?: {
