@@ -1,6 +1,7 @@
 "use client";
 
-import { DitherVisual } from "@/components/DitherVisual";
+import { LandingSection, LandingSectionHeader } from "./LandingSection";
+import { LandingCard } from "./LandingPanel";
 
 const personas = [
   {
@@ -25,58 +26,23 @@ const personas = [
   },
 ];
 
+const ditherVariants = ["warp", "wave", "plasma", "warp"] as const;
+
 export function PersonasSection() {
   return (
-    <section className="border-divider">
-      <div className="mx-auto w-full max-w-5xl section-padding-x py-8 sm:py-12 md:py-16">
-        <h2
-          className="text-2xl sm:text-3xl font-semibold tracking-tight text-center"
-          style={{ color: "var(--foreground)" }}
-        >
-          Who it&apos;s for
-        </h2>
-        <div className="mt-6 sm:mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 md:gap-6 min-w-0 max-w-4xl mx-auto">
-          {personas.map((p, i) => {
-            const variants = ["warp", "wave", "plasma", "warp"] as const;
-            const variant = variants[i % variants.length];
-            return (
-              <div
-                key={p.title}
-                className="landing-card-hover flex flex-col border-outline min-w-0"
-                style={{ backgroundColor: "var(--background)" }}
-              >
-                <div
-                  className="shrink-0 w-full h-3 sm:h-4 overflow-hidden opacity-40"
-                  aria-hidden
-                >
-                  <DitherVisual
-                    width={192}
-                    height={20}
-                    variant={variant}
-                    speed={0}
-                    cellShape="grid"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0 p-4 sm:p-5">
-                  <span
-                    className="font-semibold"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    {p.title}
-                  </span>
-                  <p
-                    className="mt-1 leading-relaxed text-base sm:text-sm"
-                    style={{ color: "var(--foreground)", opacity: 0.6 }}
-                  >
-                    {p.description}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+    <LandingSection defer>
+      <LandingSectionHeader title="Who it's for" />
+      <div className="landing-grid">
+        {personas.map((p, i) => (
+          <LandingCard
+            key={p.title}
+            title={p.title}
+            ditherVariant={ditherVariants[i % ditherVariants.length]}
+          >
+            <p className="landing-card-text">{p.description}</p>
+          </LandingCard>
+        ))}
       </div>
-    </section>
+    </LandingSection>
   );
 }

@@ -22,27 +22,23 @@ export function CopyButton({ text }: CopyButtonProps) {
 
   return (
     <button
+      type="button"
       onClick={handleCopy}
-      className="btn-landing btn-landing-secondary text-xs min-w-[44px] px-3 cursor-pointer"
-      style={{ opacity: copied ? 0.9 : 0.7 }}
-      onMouseEnter={(e) => {
-        if (!copied) e.currentTarget.style.opacity = "0.7";
-      }}
-      onMouseLeave={(e) => {
-        if (!copied) e.currentTarget.style.opacity = "0.4";
-      }}
-      aria-label="Copy to clipboard"
+      className={`copy-button btn-landing btn-landing-secondary text-xs min-w-[44px] px-3 cursor-pointer${
+        copied ? " copy-button--copied" : ""
+      }`}
+      aria-label={copied ? "Copied to clipboard" : "Copy to clipboard"}
     >
-      <span className="inline-flex items-center gap-1.5">
+      <span className="inline-flex items-center gap-1.5" aria-live="polite">
         {copied ? (
           <>
             <CheckIcon className="size-3.5 shrink-0" />
-            copied
+            Copied
           </>
         ) : (
           <>
             <CopyIcon className="size-3.5 shrink-0" />
-            copy
+            Copy
           </>
         )}
       </span>

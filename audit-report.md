@@ -6,7 +6,7 @@ This document is an **AI-assisted security review** produced with structured met
 **Date:** March 8, 2026  
 **Scope:** AEP economic account and economic relationship contracts (`contracts/src/` excluding `interfaces/`, `lib/`, `vendor/`)  
 **Solidity Version:** ^0.8.23  
-**Revision:** March 19, 2026 — Full Map-Hunt-Attack + Slither run; L-4 (RateLimitPolicy window) remediated; QuillShield layers re-applied
+**Revision:** August 20, 2026 — Comprehensive smart-contract audit pass; H-1, M-1–M-3, L-4–L-11 remediated; `forge test` 188 passing (1 skipped fork test). Prior March 2026 revisions retained below.
 
 ---
 
@@ -34,7 +34,9 @@ The AEP (Agent Economic Protocol) codebase implements an ERC-4337 smart account 
 
 **March 19, 2026 end-to-end audit:** Cheatsheet-driven syntactic sweep; Slither on `contracts/` with `lib/|test/|script/` filtered (~59 contracts, 114 detector hits triaged); semantic review of policies, `PaymentDecoder`, relationship contracts, and factories; QuillShield layers re-applied. **L-4** identified: `RateLimitPolicy.setLimits` allowed `maxTxPerWindow > 0` with `windowSeconds == 0`, breaking per-window enforcement (owner misconfiguration). **Remediated** in-contract with `RateLimitPolicyInvalidWindow` and tests.
 
-**Current findings:** 0 Critical, 0 High, 0 Medium, 0 Low, 0 Informational (I-13, I-14, L-4 remediated).
+**August 20, 2026 comprehensive audit pass:** Full review of economic account and relationship contracts. Findings **H-1** (SLA instant unstake / FoT stake accounting), **M-1** (CreditFacility withdraw while drawn / FoT deposit-repay), **M-2** (CreditFacilityFactory lender-only + zero limit), **M-3** (ConditionalEscrow validator dispute / milestone release / funded acknowledge / FoT), **L-4** (PaymentDecoder approve/increaseAllowance), **L-5** (duplicate modules in `initializeWithModules`), **L-6** (RateLimitPolicy dead initialize surface), **L-7** (frozen blocks `withdrawDepositTo`), **L-8–L-10** (BudgetPolicy/CounterpartyPolicy constructor-only), and **L-11** (tests + threat-model docs). **All remediated.** `forge test`: 188 passed, 1 skipped.
+
+**Current findings:** 0 Critical, 0 High, 0 Medium, 0 Low, 0 Informational for this pass (H-1, M-1–M-3, L-4–L-11 and prior I/L items remediated).
 
 **Economic relationship contracts:** CreditFacility, ConditionalEscrow, RevenueSplitter, SLAContract and their factories; PaymentDecoder; relationship-specific trust boundaries.
 
@@ -81,6 +83,19 @@ The AEP (Agent Economic Protocol) codebase implements an ERC-4337 smart account 
 | I-14 | ConditionalEscrow validatorAddress not enforced in release | **Fixed** – validator == validatorAddress check in release() |
 | **March 19, 2026** | | |
 | L-4 | RateLimitPolicy: windowSeconds 0 with maxTxPerWindow > 0 breaks cap | **Fixed** – `setLimits` reverts with `RateLimitPolicyInvalidWindow`; tests added |
+| **August 20, 2026** | | |
+| H-1 | SLAContract instant unstake; FoT stake/slash math | **Fixed** – `requestUnstake` + 7-day delay; `stakedBalance` balance-delta; zero stake rejected |
+| M-1 | CreditFacility withdraw blocked while drawn; FoT deposit/repay | **Fixed** – withdraw undeployed balance; deposit/repay credit received amount |
+| M-2 | CreditFacilityFactory third-party create; zero limit | **Fixed** – `msg.sender == lender` always; `CreditFacilityFactoryZeroLimit` |
+| M-3 | ConditionalEscrow dispute/release/acknowledge gaps; FoT | **Fixed** – designated validator on dispute; unsubmitted milestone block; funded acknowledge; balance-delta |
+| L-4 | PaymentDecoder missing approve/increaseAllowance | **Fixed** – decode spender + amount for both selectors |
+| L-5 | AEPAccount duplicate modules in initializeWithModules | **Fixed** – revert `AEPAccountAlreadyAdded` on duplicate |
+| L-6 | RateLimitPolicy dead Initializable/initialize surface | **Fixed** – constructor-only (same as other policies) |
+| L-7 | AEPAccount frozen did not block withdrawDepositTo | **Fixed** – `AEPAccountFrozen` on withdraw |
+| L-8 | BudgetPolicy dead initialize surface | **Fixed** – constructor-only |
+| L-9 | CounterpartyPolicy dead initialize surface | **Fixed** – constructor-only |
+| L-10 | Policy modules inconsistent init pattern | **Fixed** – all policies constructor-only |
+| L-11 | Tests and threat-model documentation | **Fixed** – FoT relationship tests; THREAT-MODEL.md updated |
 
 ---
 
@@ -339,9 +354,9 @@ All prior recommendations have been implemented. See Remediation Status table ab
 | Slither | Pass (venv install); hits triaged in table above |
 | QuillShield 10 layers | Applied; L-4 found via semantic guard / input validation layer |
 
-**Sign-off:** 0 Critical, 0 High, 0 Medium, 0 Low, 0 Informational. L-4 remediated. Prior I/L items remain fixed. Codebase consistent with `docs/THREAT-MODEL.md` for reviewed scope.
+**Sign-off:** 0 Critical, 0 High, 0 Medium, 0 Low, 0 Informational for the August 20, 2026 pass. H-1, M-1–M-3, L-4–L-11 remediated. Prior I/L items remain fixed. Codebase consistent with `docs/THREAT-MODEL.md` for reviewed scope. **This is an AI-assisted internal review, not a third-party firm audit.**
 
-**Note:** Existing on-chain `RateLimitPolicy` instances deployed before this fix could still hold `windowSeconds == 0` with `maxTxPerWindow > 0` if mis-set; owners should call `setLimits` with a positive window or set max to zero to disable. For the **`RateLimitPolicyInvalidWindow`** revert on future `setLimits` calls, deploy a **new** module from updated bytecode and swap policy modules on the account.
+**Note:** Existing on-chain `RateLimitPolicy` instances deployed before the March 2026 fix could still hold `windowSeconds == 0` with `maxTxPerWindow > 0` if mis-set; owners should call `setLimits` with a positive window or set max to zero to disable. For the **`RateLimitPolicyInvalidWindow`** revert on future `setLimits` calls, deploy a **new** module from updated bytecode and swap policy modules on the account. SLA contracts deployed before August 2026 lack the unstake delay — redeploy for the 7-day delay and FoT-safe `stakedBalance` accounting.
 
 ---
 
