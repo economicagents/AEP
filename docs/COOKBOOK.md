@@ -9,12 +9,15 @@ Single reference for AEP deployment, policies, integration, and operations. For 
 
 ## Quick Start
 
+**npm-first (recommended):** see [Getting started — Quick start](getting-started/quickstart.md) — `npx @economicagents/cli@0.2.0 deploy` against the published factory; no Foundry clone.
+
+**From source (custom factory):**
+
 1. **Deploy factory:** `cd contracts && forge script script/Deploy.s.sol --rpc-url base_sepolia --broadcast` (requires .env with PRIVATE_KEY, BASE_SEPOLIA_RPC) → note factory address
-2. **Deploy account:** `aep deploy --factory 0xFactoryAddress` (owner derived from PRIVATE_KEY) or `aep deploy --owner 0x... --factory 0x...`
-3. **Set policies:** `aep policy-set -m <module> --max-per-tx 1000000 --max-daily 5000000 --max-weekly 20000000` (get module via `aep modules`)
-4. **Optional — relationships:** `cd contracts && forge script script/DeployRelationships.s.sol --rpc-url base_sepolia --broadcast` (treasury derived from PRIVATE_KEY) → add factory addresses to `~/.aep/config.json`
-5. **Optional — intent resolution:** `cd packages/indexer && pnpm run build && node dist/cli.js sync` (index at `~/.aep/index/`)
-6. **Optional — API:** `cd packages/api && pnpm run build && node dist/index.js` (POST /resolve on port 3847)
+2. **Deploy account:** `npx @economicagents/cli@0.2.0 deploy --factory 0xFactoryAddress` (owner derived from PRIVATE_KEY) or `--owner 0x...`
+3. **Set policies:** `npx @economicagents/cli@0.2.0 policy-set -m <module> --max-per-tx 1000000 --max-daily 5000000 --max-weekly 20000000` (get module via `aep modules`)
+4. **Optional — relationships:** `cd contracts && forge script script/DeployRelationships.s.sol --rpc-url base_sepolia --broadcast` → add factory addresses to `~/.aep/config.json`
+5. **Optional — intent resolution (self-host):** `cd packages/indexer && pnpm run build && npx aep-index sync` (index at `~/.aep/index/`); `cd packages/api && pnpm run build && node dist/index.js` (POST /resolve on port 3847). Hosted reference at `https://api.economicagents.org` is **offline** (HTTP 521) as of August 2026.
 
 **Full config** (`~/.aep/config.json`): `factoryAddress`, `rpcUrl`, `account` (from deploy); for counterparty: `identityRegistryAddress`, `reputationRegistryAddress`; for execute: `bundlerRpcUrl`; for resolve: `indexPath`; optional **`indexDatabaseUrl`** — PostgreSQL URL for hybrid provider search (overridden by env `AEP_INDEX_DATABASE_URL` when set); for relationships: `creditFacilityFactoryAddress`, `escrowFactoryAddress`, `revenueSplitterFactoryAddress`, `slaFactoryAddress`; for monitor: `monitor.accounts`, `monitor.facilities`, `monitor.slas`, `monitor.webhookUrl`, `monitor.pollIntervalMs`; for fleet: `fleets`.
 
@@ -101,12 +104,14 @@ Single reference for AEP deployment, policies, integration, and operations. For 
 {
   "mcpServers": {
     "aep": {
-      "command": "node",
-      "args": ["/path/to/AEP/packages/mcp/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "@economicagents/mcp@0.2.0"]
     }
   }
 }
 ```
+
+See [MCP reference](reference/mcp.md) for global install and monorepo paths.
 
 Tools: `get_balance`, `get_policy_state`, `set_budget_caps`, `resolve_intent`, `get_analytics`, `get_credit_score`, `get_recommendations`, `fleet_summary`, `fleet_accounts`, `fleet_alerts`, `credit_state`, `escrow_state`, `splitter_state`, `sla_state`.
 

@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { GitHubLogo, DiscordLogo } from "@/components/ProviderLogos";
+import { GitHubLogo } from "@/components/ProviderLogos";
 import { DitherVisual } from "@/components/DitherVisual";
 import { BookOpenIcon } from "@/components/icons";
 import { GITHUB_REPO } from "@/lib/github";
 import { LandingBtnRow } from "./LandingSection";
 import { InViewReveal } from "@/components/InViewReveal";
-
-const PUBLIC_API_URL = "https://api.economicagents.org";
 
 export function GetStartedSection() {
   return (
@@ -39,9 +37,12 @@ export function GetStartedSection() {
             <div className="cta-content">
               <h2 className="landing-section-title">Get started</h2>
               <p className="landing-section-lead mx-auto mt-3 max-w-lg">
-                AEP is live on Base Sepolia and Base mainnet. The hosted
-                reference API is operational — use the quick start, SDK, and
-                docs to integrate, or call the API directly.
+                AEP is live on Base Sepolia and Base mainnet. Start with{" "}
+                <code className="text-xs opacity-80">npx @economicagents/cli</code>
+                , the SDK, and docs — no repo clone required. Self-host the REST
+                API for intent resolution; the hosted reference at{" "}
+                <code className="text-xs opacity-80">api.economicagents.org</code>{" "}
+                is currently offline.
               </p>
               <LandingBtnRow>
                 <Link
@@ -52,12 +53,10 @@ export function GetStartedSection() {
                   Quick start guide
                 </Link>
                 <Link
-                  href={PUBLIC_API_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="/docs/reference/rest-api"
                   className="btn-landing btn-landing-secondary inline-flex w-full items-center justify-center gap-2 sm:w-auto"
                 >
-                  Public API
+                  Self-host API
                 </Link>
                 <Link
                   href={GITHUB_REPO}
@@ -68,16 +67,6 @@ export function GetStartedSection() {
                   <GitHubLogo size={16} />
                   GitHub
                 </Link>
-                <span
-                  role="button"
-                  aria-label="Discord"
-                  title="Coming soon"
-                  onClick={(e) => e.preventDefault()}
-                  className="btn-landing btn-landing-secondary inline-flex w-full cursor-pointer items-center justify-center gap-2 sm:w-auto"
-                >
-                  <DiscordLogo size={16} />
-                  Discord
-                </span>
               </LandingBtnRow>
             </div>
           </div>

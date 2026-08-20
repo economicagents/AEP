@@ -9,18 +9,20 @@ Wire AEP into your stack: **MCP** (Cursor and compatible IDEs), **OpenClaw** ski
 
 ## MCP Config
 
-Add the AEP MCP server to Cursor or compatible IDE:
+Add the AEP MCP server to Cursor or compatible IDE (published package on npm **0.2.0**):
 
 ```json
 {
   "mcpServers": {
     "aep": {
-      "command": "node",
-      "args": ["/path/to/AEP/packages/mcp/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "@economicagents/mcp@0.2.0"]
     }
   }
 }
 ```
+
+Contributors building from a clone can use `"command": "node"`, `"args": ["/path/to/AEP/packages/mcp/dist/index.js"]` after `pnpm run build` in `packages/mcp`.
 
 Tools: `get_balance`, `get_policy_state`, `set_budget_caps`, `resolve_intent`, `get_analytics`, `get_credit_score`, `get_recommendations`, `fleet_summary`, `fleet_accounts`, `fleet_alerts`, `credit_state`, `escrow_state`, `splitter_state`, `sla_state`.
 

@@ -273,9 +273,11 @@ pnpm exec aep monitor
 
 Uses `config.account` when `monitor.accounts` is empty; optional `monitor.webhookUrl`.
 
-### Hosted API (mainnet)
+### Hosted API (reference — currently offline)
 
-A public reference deployment of the resolution stack is at **https://api.economicagents.org** (resolve, analytics, probe, graphql). **This repository documents contract deployment, validation, and how to run services locally or on infrastructure you control.** It does not include production hosting runbooks or operator-specific provisioning steps—document those wherever you maintain operational knowledge.
+A public reference deployment was at **https://api.economicagents.org** (resolve, analytics, probe, graphql). **As of August 2026 it returns HTTP 521** (Cloudflare origin unreachable) — treat it as **down** until operators restore hosting. For production, **self-host** from `packages/api` on infrastructure you control (see [REST API](../reference/rest-api.md)).
+
+This repository documents contract deployment, validation, and how to run services locally or on infrastructure you control. It does not include production hosting runbooks for `api.economicagents.org` — document those wherever you maintain operational knowledge.
 
 ---
 

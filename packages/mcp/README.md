@@ -4,11 +4,19 @@
 
 ## Install
 
+**npm (registry 0.2.0):**
+
 ```bash
-pnpm add @economicagents/mcp
+npx @economicagents/mcp@0.2.0
+npm install -g @economicagents/mcp@0.2.0   # bin: aep-mcp
 ```
 
-**From a local clone** of [economicagents/AEP](https://github.com/economicagents/AEP): `cd packages/mcp && pnpm run build`.
+**From monorepo:**
+
+```bash
+pnpm add @economicagents/mcp
+cd packages/mcp && pnpm run build
+```
 
 ## Tools
 
@@ -31,11 +39,24 @@ pnpm add @economicagents/mcp
 
 ## Usage
 
+**Cursor / IDE MCP config (recommended):**
+
+```json
+{
+  "mcpServers": {
+    "aep": {
+      "command": "npx",
+      "args": ["-y", "@economicagents/mcp@0.2.0"]
+    }
+  }
+}
+```
+
+**From a local clone** (contributors):
+
 ```bash
 cd packages/mcp && pnpm run build && node dist/index.js
 ```
-
-Example MCP config (replace `<path-to-clone>` with your checkout of [economicagents/AEP](https://github.com/economicagents/AEP)):
 
 ```json
 {
@@ -48,17 +69,15 @@ Example MCP config (replace `<path-to-clone>` with your checkout of [economicage
 }
 ```
 
-Requires `~/.aep/config.json`. `set_budget_caps` needs `AEP_KEYSTORE_ACCOUNT` (preferred) or `PRIVATE_KEY`.
+Requires `~/.aep/config.json` (deploy an account first — see [Quick start](https://github.com/economicagents/AEP/blob/main/docs/getting-started/quickstart.md)). Intent resolution needs a synced index or self-hosted REST API.
 
 ## Build & test
 
 ```bash
 pnpm run build
-pnpm run test
 ```
 
 ## Documentation
 
 - [MCP reference](https://github.com/economicagents/AEP/blob/main/docs/reference/mcp.md)
-- [Cookbook](https://github.com/economicagents/AEP/blob/main/docs/COOKBOOK.md)
 - [Integration guide](https://github.com/economicagents/AEP/blob/main/docs/guides/integration.md)

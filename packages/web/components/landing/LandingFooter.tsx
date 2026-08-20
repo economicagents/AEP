@@ -50,16 +50,6 @@ export function LandingFooter() {
           >
             GitHub
           </Link>
-          <span
-            role="link"
-            aria-label="Discord"
-            title="Coming soon"
-            onClick={(e) => e.preventDefault()}
-            className="inline-flex items-center justify-center min-h-[44px] sm:min-h-0 min-w-[44px] sm:min-w-0 py-2 sm:py-0 px-2 sm:px-0 opacity-50 hover:opacity-100 transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] cursor-pointer"
-            style={{ color: "var(--foreground)" }}
-          >
-            Discord
-          </span>
           <Link
             href={githubBlobPath("audit-report.md")}
             target="_blank"

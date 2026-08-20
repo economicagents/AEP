@@ -2,6 +2,9 @@
 
 HTTP interface for intent resolution, analytics, fleet, probe, and GraphQL — typically **self-hosted** from `packages/api`. Default port **3847**. Config: `~/.aep/config.json`. Override: `PORT`, `AEP_CONFIG_PATH`.
 
+> [!WARNING]
+> **Hosted reference:** `https://api.economicagents.org` returned **HTTP 521** (offline) as of August 2026. Do not treat it as operational — run `packages/api` locally or on your own infrastructure. Check status: `curl -sI https://api.economicagents.org`.
+
 ## Health
 
 ### GET /health
