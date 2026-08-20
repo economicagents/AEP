@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       { source: "/docs/architecture", destination: "/docs/reference/architecture", permanent: true },
       { source: "/docs/threat-model", destination: "/docs/reference/threat-model", permanent: true },
       { source: "/docs/api", destination: "/docs/reference/rest-api", permanent: true },
+      { source: "/docs/mcp", destination: "/docs/reference/mcp", permanent: true },
     ];
   },
 };

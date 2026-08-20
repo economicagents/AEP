@@ -7,12 +7,14 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /**
  * @title CreditFacilityFactory
- * @notice Deploys CreditFacility instances. Collects origination fee to treasury when fee > 0.
+ * @notice Deploys CreditFacility instances. Only the lender may create facilities. Collects origination fee to
+ *         treasury when fee > 0.
  */
 contract CreditFacilityFactory {
     using SafeERC20 for IERC20;
 
     error CreditFacilityFactoryZeroAddress();
+    error CreditFacilityFactoryZeroLimit();
     error CreditFacilityFactoryFeeRequiresTreasury();
     error CreditFacilityFactoryLenderMustCreate();
 
@@ -40,9 +42,10 @@ contract CreditFacilityFactory {
         if (lender == address(0) || borrower == address(0) || token == address(0)) {
             revert CreditFacilityFactoryZeroAddress();
         }
+        if (limit == 0) revert CreditFacilityFactoryZeroLimit();
+        if (msg.sender != lender) revert CreditFacilityFactoryLenderMustCreate();
         if (originationFee > 0) {
             if (treasury == address(0)) revert CreditFacilityFactoryFeeRequiresTreasury();
-            if (msg.sender != lender) revert CreditFacilityFactoryLenderMustCreate();
             IERC20(token).safeTransferFrom(lender, treasury, originationFee);
         }
         facility = address(

@@ -79,11 +79,12 @@ contract AEPAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, Initi
         owner = anOwner;
         uint256 len = modules.length;
         for (uint256 i = 0; i < len; i++) {
-            if (modules[i] != address(0)) {
-                policyModules.push(modules[i]);
-                isPolicyModule[modules[i]] = true;
-                emit PolicyModuleAdded(modules[i]);
-            }
+            address module = modules[i];
+            if (module == address(0)) continue;
+            if (isPolicyModule[module]) revert AEPAccountAlreadyAdded();
+            policyModules.push(module);
+            isPolicyModule[module] = true;
+            emit PolicyModuleAdded(module);
         }
         emit AEPAccountInitialized(_ENTRY_POINT, owner);
     }
@@ -206,6 +207,7 @@ contract AEPAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, Initi
     }
 
     function withdrawDepositTo(address payable withdrawAddress, uint256 amount) public onlyOwner {
+        if (frozen) revert AEPAccountFrozen();
         entryPoint().withdrawTo(withdrawAddress, amount);
     }
 

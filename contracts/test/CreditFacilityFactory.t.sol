@@ -134,6 +134,42 @@ contract CreditFacilityFactoryTest is Test {
         );
     }
 
+    function test_CreateFacility_LenderMustCreateEvenWithoutFee() public {
+        factory = new CreditFacilityFactory(treasury);
+        vm.prank(borrower);
+        vm.expectRevert(CreditFacilityFactory.CreditFacilityFactoryLenderMustCreate.selector);
+        factory.createFacility(
+            lender,
+            borrower,
+            address(token),
+            LIMIT,
+            MIN_REPUTATION,
+            30 days,
+            address(reputationRegistry),
+            address(identityRegistry),
+            BORROWER_AGENT_ID,
+            0
+        );
+    }
+
+    function test_CreateFacility_ZeroLimitReverts() public {
+        factory = new CreditFacilityFactory(treasury);
+        vm.prank(lender);
+        vm.expectRevert(CreditFacilityFactory.CreditFacilityFactoryZeroLimit.selector);
+        factory.createFacility(
+            lender,
+            borrower,
+            address(token),
+            0,
+            MIN_REPUTATION,
+            30 days,
+            address(reputationRegistry),
+            address(identityRegistry),
+            BORROWER_AGENT_ID,
+            0
+        );
+    }
+
     function test_CreateFacility_ZeroAddressReverts() public {
         factory = new CreditFacilityFactory(treasury);
         vm.prank(lender);

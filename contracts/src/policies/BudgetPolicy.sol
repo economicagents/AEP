@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.23;
 
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {IPolicyModule} from "../interfaces/IPolicyModule.sol";
 import {PackedUserOperation} from "../vendor/interfaces/PackedUserOperation.sol";
 import {PaymentDecoder} from "../libraries/PaymentDecoder.sol";
@@ -11,10 +10,9 @@ import {PaymentDecoder} from "../libraries/PaymentDecoder.sol";
  * @notice Enforces per-tx, daily, weekly, per-task spend caps. Tracks cumulative spend in contract storage.
  *         Window lengths are configurable; 0 means use default (daily=86400, weekly=604800).
  */
-contract BudgetPolicy is IPolicyModule, Initializable {
+contract BudgetPolicy is IPolicyModule {
     error BudgetPolicyNotOwner();
     error BudgetPolicyNotAccount();
-    error BudgetPolicyAlreadyInitialized();
     error BudgetPolicyZeroOwner();
     error BudgetPolicyZeroAccount();
 
@@ -96,30 +94,6 @@ contract BudgetPolicy is IPolicyModule, Initializable {
         taskWindowSeconds = _taskWindowSeconds;
         dailyWindowSeconds = _dailyWindowSeconds;
         weeklyWindowSeconds = _weeklyWindowSeconds;
-    }
-
-    /// @dev Policy modules must be deployed via factory or initialize called atomically in same tx as deployment.
-    function initialize(address _account, address _owner) external initializer {
-        if (account != address(0)) revert BudgetPolicyAlreadyInitialized();
-        if (_account == address(0)) revert BudgetPolicyZeroAccount();
-        if (_owner == address(0)) revert BudgetPolicyZeroOwner();
-        account = _account;
-        owner = _owner;
-    }
-
-    /// @dev Policy modules must be deployed via factory or initialize called atomically in same tx as deployment.
-    function initialize(address _account, address _owner, uint256 _maxPerTx, uint256 _maxDaily, uint256 _maxWeekly)
-        external
-        initializer
-    {
-        if (account != address(0)) revert BudgetPolicyAlreadyInitialized();
-        if (_account == address(0)) revert BudgetPolicyZeroAccount();
-        if (_owner == address(0)) revert BudgetPolicyZeroOwner();
-        account = _account;
-        owner = _owner;
-        maxPerTx = _maxPerTx;
-        maxDaily = _maxDaily;
-        maxWeekly = _maxWeekly;
     }
 
     function setAccount(address _account) external onlyOwner {

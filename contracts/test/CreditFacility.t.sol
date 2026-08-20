@@ -196,7 +196,24 @@ contract CreditFacilityTest is Test {
         facility.declareDefault();
     }
 
-    function test_WithdrawRevertsWhenDrawnOutstanding() public {
+    function test_WithdrawUndeployedWhileDrawnOutstanding() public {
+        vm.startPrank(lender);
+        token.approve(address(facility), 500e6);
+        facility.deposit(500e6);
+        vm.stopPrank();
+
+        vm.prank(borrower);
+        facility.draw(200e6);
+
+        vm.startPrank(lender);
+        facility.withdraw(100e6);
+        vm.stopPrank();
+
+        assertEq(token.balanceOf(address(facility)), 200e6);
+        assertEq(facility.drawn(), 200e6);
+    }
+
+    function test_WithdrawRevertsWhenExceedsUndeployed() public {
         vm.startPrank(lender);
         token.approve(address(facility), 500e6);
         facility.deposit(500e6);
@@ -206,8 +223,8 @@ contract CreditFacilityTest is Test {
         facility.draw(200e6);
 
         vm.prank(lender);
-        vm.expectRevert(CreditFacility.CreditFacilityDrawnOutstanding.selector);
-        facility.withdraw(300e6);
+        vm.expectRevert(CreditFacility.CreditFacilityExceedsLimit.selector);
+        facility.withdraw(301e6);
     }
 
     function test_Unfreeze() public {
@@ -235,5 +252,35 @@ contract CreditFacilityTest is Test {
         vm.prank(borrower);
         vm.expectRevert(CreditFacility.CreditFacilityDefaulted.selector);
         facility.draw(100e6);
+    }
+
+    function test_DeclareDefaultRevertsZeroDrawn() public {
+        vm.startPrank(lender);
+        token.approve(address(facility), 500e6);
+        facility.deposit(500e6);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 31 days);
+        vm.prank(lender);
+        vm.expectRevert(CreditFacility.CreditFacilityExceedsLimit.selector);
+        facility.declareDefault();
+    }
+
+    function test_GetStateReturnsExpectedFields() public {
+        vm.startPrank(lender);
+        token.approve(address(facility), 500e6);
+        facility.deposit(500e6);
+        vm.stopPrank();
+
+        vm.prank(borrower);
+        facility.draw(200e6);
+
+        (uint256 limitAmount, uint256 drawnAmount, uint256 balance, bool frozenState, bool defaulted,) =
+            facility.getState();
+        assertEq(limitAmount, LIMIT);
+        assertEq(drawnAmount, 200e6);
+        assertEq(balance, 300e6);
+        assertFalse(frozenState);
+        assertFalse(defaulted);
     }
 }

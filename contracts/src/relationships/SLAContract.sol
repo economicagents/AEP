@@ -9,7 +9,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 /**
  * @title SLAContract
  * @notice Staking-backed SLA. Provider stakes; consumer claims on breach (validation response below threshold).
- *         Uses SafeERC20 for compatibility with non-standard ERC-20 and fee-on-transfer tokens.
+ *         Uses balance-delta accounting for fee-on-transfer tokens. Unstake requires a 7-day delay after request;
+ *         stake remains slashable during the delay.
  */
 contract SLAContract is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -22,9 +23,13 @@ contract SLAContract is ReentrancyGuard {
     error SLAContractBreachThresholdNotMet();
     error SLAContractAgentMismatch();
     error SLAContractZeroAddress();
+    error SLAContractZeroStakeAmount();
+    error SLAContractUnstakeNotRequested();
+    error SLAContractUnstakeDelayNotElapsed();
 
     event Staked(address indexed provider, uint256 amount);
     event BreachDeclared(address indexed consumer, bytes32 indexed requestHash, uint256 amount);
+    event UnstakeRequested(address indexed provider, uint256 requestedAt);
     event Unstaked(address indexed provider, uint256 amount);
 
     address public immutable provider;
@@ -35,8 +40,12 @@ contract SLAContract is ReentrancyGuard {
     IERC8004Validation public immutable validationRegistry;
     uint8 public immutable breachThreshold; // if validation response < this, breach
 
+    uint256 public constant UNSTAKE_DELAY = 7 days;
+
     bool public staked;
     bool public breached;
+    uint256 public stakedBalance;
+    uint256 public unstakeRequestedAt;
 
     constructor(
         address _provider,
@@ -53,6 +62,7 @@ contract SLAContract is ReentrancyGuard {
         ) {
             revert SLAContractZeroAddress();
         }
+        if (_stakeAmount == 0) revert SLAContractZeroStakeAmount();
         provider = _provider;
         consumer = _consumer;
         providerAgentId = _providerAgentId;
@@ -74,9 +84,13 @@ contract SLAContract is ReentrancyGuard {
 
     function stake() external onlyProvider nonReentrant {
         if (staked) revert SLAContractAlreadyStaked();
-        staked = true;
+        uint256 balanceBefore = stakeToken.balanceOf(address(this));
         stakeToken.safeTransferFrom(provider, address(this), stakeAmount);
-        emit Staked(provider, stakeAmount);
+        uint256 received = stakeToken.balanceOf(address(this)) - balanceBefore;
+        if (received == 0) revert SLAContractZeroStakeAmount();
+        staked = true;
+        stakedBalance = received;
+        emit Staked(provider, received);
     }
 
     function declareBreach(bytes32 requestHash) external onlyConsumer nonReentrant {
@@ -90,19 +104,38 @@ contract SLAContract is ReentrancyGuard {
 
         breached = true;
         staked = false;
-        stakeToken.safeTransfer(consumer, stakeAmount);
-        emit BreachDeclared(consumer, requestHash, stakeAmount);
+        uint256 amount = stakedBalance;
+        stakedBalance = 0;
+        unstakeRequestedAt = 0;
+        stakeToken.safeTransfer(consumer, amount);
+        emit BreachDeclared(consumer, requestHash, amount);
+    }
+
+    function requestUnstake() external onlyProvider {
+        if (!staked) revert SLAContractNotStaked();
+        if (breached) revert SLAContractNotStaked();
+        unstakeRequestedAt = block.timestamp;
+        emit UnstakeRequested(provider, unstakeRequestedAt);
     }
 
     function unstake() external onlyProvider nonReentrant {
         if (!staked) revert SLAContractNotStaked();
         if (breached) revert SLAContractNotStaked();
+        if (unstakeRequestedAt == 0) revert SLAContractUnstakeNotRequested();
+        if (block.timestamp < unstakeRequestedAt + UNSTAKE_DELAY) revert SLAContractUnstakeDelayNotElapsed();
+        uint256 amount = stakedBalance;
         staked = false;
-        stakeToken.safeTransfer(provider, stakeAmount);
-        emit Unstaked(provider, stakeAmount);
+        stakedBalance = 0;
+        unstakeRequestedAt = 0;
+        stakeToken.safeTransfer(provider, amount);
+        emit Unstaked(provider, amount);
     }
 
-    function getState() external view returns (bool _staked, bool _breached, uint256 _balance) {
-        return (staked, breached, stakeToken.balanceOf(address(this)));
+    function getState()
+        external
+        view
+        returns (bool _staked, bool _breached, uint256 _stakedBalance, uint256 _tokenBalance)
+    {
+        return (staked, breached, stakedBalance, stakeToken.balanceOf(address(this)));
     }
 }
