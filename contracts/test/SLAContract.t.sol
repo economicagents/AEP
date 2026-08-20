@@ -43,10 +43,53 @@ contract SLAContractTest is Test {
         token.approve(address(sla), STAKE_AMOUNT);
         sla.stake();
         assertTrue(sla.staked());
+        assertEq(sla.stakedBalance(), STAKE_AMOUNT);
+        sla.requestUnstake();
+        vm.warp(block.timestamp + sla.UNSTAKE_DELAY());
         sla.unstake();
         assertFalse(sla.staked());
         assertEq(token.balanceOf(provider), 200e6);
         vm.stopPrank();
+    }
+
+    function test_UnstakeRevertsWithoutRequest() public {
+        vm.startPrank(provider);
+        token.approve(address(sla), STAKE_AMOUNT);
+        sla.stake();
+        vm.expectRevert(SLAContract.SLAContractUnstakeNotRequested.selector);
+        sla.unstake();
+        vm.stopPrank();
+    }
+
+    function test_UnstakeRevertsBeforeDelay() public {
+        vm.startPrank(provider);
+        token.approve(address(sla), STAKE_AMOUNT);
+        sla.stake();
+        sla.requestUnstake();
+        vm.expectRevert(SLAContract.SLAContractUnstakeDelayNotElapsed.selector);
+        sla.unstake();
+        vm.stopPrank();
+    }
+
+    function test_BreachSlashableDuringUnstakeDelay() public {
+        vm.startPrank(provider);
+        token.approve(address(sla), STAKE_AMOUNT);
+        sla.stake();
+        sla.requestUnstake();
+        vm.stopPrank();
+
+        validationRegistry.setValidation(REQUEST_HASH, validator, PROVIDER_AGENT_ID, 50);
+
+        vm.prank(consumer);
+        sla.declareBreach(REQUEST_HASH);
+
+        assertTrue(sla.breached());
+        assertEq(token.balanceOf(consumer), STAKE_AMOUNT);
+    }
+
+    function test_ConstructorRevertsZeroStakeAmount() public {
+        vm.expectRevert(SLAContract.SLAContractZeroStakeAmount.selector);
+        new SLAContract(provider, consumer, PROVIDER_AGENT_ID, address(token), 0, address(validationRegistry), 80);
     }
 
     function test_DeclareBreach() public {
@@ -160,5 +203,33 @@ contract SLAContractTest is Test {
         vm.prank(provider);
         vm.expectRevert(SLAContract.SLAContractNotStaked.selector);
         sla.unstake();
+    }
+
+    function test_RequestUnstakeRevertsWhenNotStaked() public {
+        vm.prank(provider);
+        vm.expectRevert(SLAContract.SLAContractNotStaked.selector);
+        sla.requestUnstake();
+    }
+
+    function test_DeclareBreachRevertsNotStaked() public {
+        vm.prank(consumer);
+        vm.expectRevert(SLAContract.SLAContractNotStaked.selector);
+        sla.declareBreach(REQUEST_HASH);
+    }
+
+    function test_GetStateMatchesInternalBalances() public {
+        vm.startPrank(provider);
+        token.approve(address(sla), STAKE_AMOUNT);
+        sla.stake();
+        vm.stopPrank();
+
+        (bool staked, bool breached, uint256 stakedBalance,) = sla.getState();
+        assertTrue(staked);
+        assertFalse(breached);
+        assertEq(stakedBalance, STAKE_AMOUNT);
+    }
+
+    function test_UnstakeDelayIsSevenDays() public view {
+        assertEq(sla.UNSTAKE_DELAY(), 7 days);
     }
 }

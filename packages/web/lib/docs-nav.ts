@@ -1,8 +1,21 @@
 /** Navigation structure for sidebar (client-safe, no Node.js deps) */
+
+export interface NavLink {
+  href: string;
+  label: string;
+}
+
+export interface NavGroup {
+  label: string;
+  items: NavLink[];
+}
+
 export interface NavSection {
   label: string;
   href?: string;
-  items: Array<{ href: string; label: string }>;
+  items: NavLink[];
+  /** Optional nested group (e.g. individual skill pages under Skills). */
+  groups?: NavGroup[];
 }
 
 const SKILL_NAMES = [
@@ -10,6 +23,7 @@ const SKILL_NAMES = [
   "aep-rate-limit",
   "aep-counterparty",
   "aep-x402",
+  "aep-mpp",
   "aep-deploy",
   "aep-integration",
   "aep-indexer",
@@ -21,7 +35,12 @@ const SKILL_NAMES = [
   "aep-monetization",
   "aep-key-management",
   "aep-formal-verification",
-];
+] as const;
+
+const SKILL_LINKS: NavLink[] = SKILL_NAMES.map((name) => ({
+  href: `/docs/skills/${name}`,
+  label: name.replace("aep-", ""),
+}));
 
 export const DOC_NAV: NavSection[] = [
   {
@@ -57,10 +76,12 @@ export const DOC_NAV: NavSection[] = [
       { href: "/docs/skills/overview", label: "Overview" },
       { href: "/docs/skills/installing", label: "Installing" },
       { href: "/docs/skills/available", label: "Available Skills" },
-      ...SKILL_NAMES.map((n) => ({
-        href: `/docs/skills/${n}`,
-        label: n.replace("aep-", ""),
-      })),
+    ],
+    groups: [
+      {
+        label: "Skill Reference",
+        items: SKILL_LINKS,
+      },
     ],
   },
   {
@@ -98,3 +119,24 @@ export const DOC_NAV: NavSection[] = [
     ],
   },
 ];
+
+/** Flatten section items and optional groups for lookup (breadcrumbs, etc.). */
+export function flattenSectionLinks(section: NavSection): NavLink[] {
+  const grouped = section.groups?.flatMap((group) => group.items) ?? [];
+  return [...section.items, ...grouped];
+}
+
+export function findNavMatch(pathname: string): { section: NavSection; item: NavLink } | null {
+  const path = pathname.replace(/^\/docs\/?/, "").replace(/\/$/, "");
+  if (!path) return null;
+
+  for (const section of DOC_NAV) {
+    for (const item of flattenSectionLinks(section)) {
+      const itemPath = item.href.replace(/^\/docs\/?/, "").replace(/\/$/, "");
+      if (path === itemPath || path.startsWith(itemPath + "/")) {
+        return { section, item };
+      }
+    }
+  }
+  return null;
+}

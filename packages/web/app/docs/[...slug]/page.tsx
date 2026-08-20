@@ -101,14 +101,14 @@ export default async function DocPage({ params }: PageProps) {
   const breadcrumbList = buildBreadcrumbList(slugStr, pageTitle);
 
   return (
-    <div className="flex w-full flex-col gap-6 lg:flex-row lg:gap-8">
+    <div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
       {/* JSON-LD BreadcrumbList — safe: static data from slug/title, no user input */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbList) }}
       />
-      <div className="flex flex-1 min-w-0 max-w-2xl flex-col">
-        <div className="flex justify-end">
+      <div className="doc-article-shell flex min-w-0 max-w-2xl flex-1 flex-col">
+        <div className="doc-article-toolbar">
           <DocCopyMarkdown content={content} />
         </div>
         <article className="prose max-w-none prose-headings:font-semibold">
