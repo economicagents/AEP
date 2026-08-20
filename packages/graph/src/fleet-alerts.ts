@@ -9,7 +9,8 @@ import { base, baseSepolia } from "viem/chains";
 import type { Address } from "viem";
 import { getDatabase } from "./store.js";
 
-const CHUNK_SIZE = 9999n;
+/** Base public RPCs (e.g. sepolia.base.org) cap eth_getLogs to 2000 blocks. */
+const CHUNK_SIZE = 2000n;
 const DEFAULT_ENTRYPOINT = "0x0000000071727De22E5E9d8BAf0edAc6f37da032" as const;
 const DEFAULT_BLOCK_RANGE = 50_000;
 
