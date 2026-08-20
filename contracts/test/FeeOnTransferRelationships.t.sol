@@ -42,13 +42,7 @@ contract FeeOnTransferRelationshipsTest is Test {
 
     function test_SLA_StakeUsesReceivedBalance() public {
         SLAContract sla = new SLAContract(
-            provider,
-            consumer,
-            PROVIDER_AGENT_ID,
-            address(token),
-            STAKE_AMOUNT,
-            address(validationRegistry),
-            80
+            provider, consumer, PROVIDER_AGENT_ID, address(token), STAKE_AMOUNT, address(validationRegistry), 80
         );
 
         vm.startPrank(provider);
@@ -63,13 +57,7 @@ contract FeeOnTransferRelationshipsTest is Test {
 
     function test_SLA_BreachPaysConsumerStakedBalance() public {
         SLAContract sla = new SLAContract(
-            provider,
-            consumer,
-            PROVIDER_AGENT_ID,
-            address(token),
-            STAKE_AMOUNT,
-            address(validationRegistry),
-            80
+            provider, consumer, PROVIDER_AGENT_ID, address(token), STAKE_AMOUNT, address(validationRegistry), 80
         );
 
         vm.startPrank(provider);
@@ -89,15 +77,7 @@ contract FeeOnTransferRelationshipsTest is Test {
 
     function test_CreditFacility_DepositCreditsReceivedAmount() public {
         CreditFacility facility = new CreditFacility(
-            lender,
-            borrower,
-            address(token),
-            1000e6,
-            0,
-            30 days,
-            address(0),
-            address(0),
-            BORROWER_AGENT_ID
+            lender, borrower, address(token), 1000e6, 0, 30 days, address(0), address(0), BORROWER_AGENT_ID
         );
 
         uint256 depositAmount = 500e6;
@@ -112,15 +92,7 @@ contract FeeOnTransferRelationshipsTest is Test {
 
     function test_CreditFacility_RepayCreditsReceivedAmount() public {
         CreditFacility facility = new CreditFacility(
-            lender,
-            borrower,
-            address(token),
-            1000e6,
-            0,
-            30 days,
-            address(0),
-            address(0),
-            BORROWER_AGENT_ID
+            lender, borrower, address(token), 1000e6, 0, 30 days, address(0), address(0), BORROWER_AGENT_ID
         );
 
         vm.startPrank(lender);

@@ -89,15 +89,7 @@ contract SLAContractTest is Test {
 
     function test_ConstructorRevertsZeroStakeAmount() public {
         vm.expectRevert(SLAContract.SLAContractZeroStakeAmount.selector);
-        new SLAContract(
-            provider,
-            consumer,
-            PROVIDER_AGENT_ID,
-            address(token),
-            0,
-            address(validationRegistry),
-            80
-        );
+        new SLAContract(provider, consumer, PROVIDER_AGENT_ID, address(token), 0, address(validationRegistry), 80);
     }
 
     function test_DeclareBreach() public {

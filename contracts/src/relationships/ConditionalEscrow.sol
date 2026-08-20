@@ -224,9 +224,7 @@ contract ConditionalEscrow is ReentrancyGuard {
             try validationRegistry.getValidationStatus(hashToCheck) returns (
                 address validator, uint256 agentId, uint8 response, bytes32, string memory, uint256
             ) {
-                if (
-                    validator == validatorAddress && agentId == providerAgentId && response >= releaseThreshold
-                ) {
+                if (validator == validatorAddress && agentId == providerAgentId && response >= releaseThreshold) {
                     revert ConditionalEscrowValidationFailed();
                 }
             } catch {
