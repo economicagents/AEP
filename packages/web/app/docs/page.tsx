@@ -86,17 +86,19 @@ export default function DocsPage() {
           />
         </div>
       </div>
-      <div className="relative z-10 space-y-5 sm:space-y-6">
+      <div className="relative z-10 flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
       <h1 className="text-lg font-semibold tracking-tight">
         AEP Documentation
       </h1>
       <p
-        className="text-sm leading-relaxed max-w-xl"
+        className="max-w-xl text-sm leading-relaxed"
         style={{ opacity: 0.85 }}
       >
         The runtime layer for economic agents. Budget governance, intent-based procurement, and persistent economic relationships. All onchain.
       </p>
-      <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2">
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {sections.map((section) => (
           <DocCard
             key={section.href}
@@ -106,7 +108,10 @@ export default function DocsPage() {
           />
         ))}
       </div>
-      <div className="pt-4 border-t mt-6" style={{ borderColor: "var(--muted)" }}>
+      <div
+        className="mt-6 border-t pt-4"
+        style={{ borderColor: "var(--docs-border-subtle)" }}
+      >
         <p className="text-xs mb-2" style={{ opacity: 0.8 }}>
           For contributors:{" "}
           <a

@@ -11,7 +11,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
  * @title CreditFacility
  * @notice On-chain credit line between two AEP accounts. Lender deposits USDC; borrower draws against limit.
  *         Reputation check via ERC-8004 before each draw. Default triggers lender to submit negative feedback.
- *         Uses SafeERC20 for compatibility with non-standard ERC-20 (e.g. USDT) and fee-on-transfer tokens.
+ *         Uses balance-delta accounting for deposit/repay (fee-on-transfer safe). Lender may withdraw undeployed
+ *         balance (contract balance minus drawn) even while drawn is outstanding.
  */
 contract CreditFacility is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -24,7 +25,6 @@ contract CreditFacility is ReentrancyGuard {
     error CreditFacilityBorrowerMismatch();
     error CreditFacilityZeroAmount();
     error CreditFacilityRepaymentNotDue();
-    error CreditFacilityDrawnOutstanding();
     error CreditFacilityZeroAddress();
     error CreditFacilityMinReputationOverflow();
 
@@ -92,8 +92,11 @@ contract CreditFacility is ReentrancyGuard {
 
     function deposit(uint256 amount) external onlyLender nonReentrant {
         if (amount == 0) revert CreditFacilityZeroAmount();
+        uint256 balanceBefore = token.balanceOf(address(this));
         token.safeTransferFrom(lender, address(this), amount);
-        emit Deposited(lender, amount);
+        uint256 received = token.balanceOf(address(this)) - balanceBefore;
+        if (received == 0) revert CreditFacilityZeroAmount();
+        emit Deposited(lender, received);
     }
 
     function draw(uint256 amount) external onlyBorrower nonReentrant {
@@ -138,9 +141,13 @@ contract CreditFacility is ReentrancyGuard {
     function repay(uint256 amount) external onlyBorrower nonReentrant {
         if (amount == 0) revert CreditFacilityZeroAmount();
         if (amount > drawn) revert CreditFacilityExceedsLimit();
-        drawn -= amount;
+        uint256 balanceBefore = token.balanceOf(address(this));
         token.safeTransferFrom(borrower, address(this), amount);
-        emit Repaid(borrower, amount);
+        uint256 received = token.balanceOf(address(this)) - balanceBefore;
+        if (received == 0) revert CreditFacilityZeroAmount();
+        if (received > drawn) revert CreditFacilityExceedsLimit();
+        drawn -= received;
+        emit Repaid(borrower, received);
     }
 
     function freeze() external onlyLender {
@@ -163,9 +170,9 @@ contract CreditFacility is ReentrancyGuard {
 
     function withdraw(uint256 amount) external onlyLender nonReentrant {
         if (amount == 0) revert CreditFacilityZeroAmount();
-        if (drawn > 0) revert CreditFacilityDrawnOutstanding();
         uint256 balance = token.balanceOf(address(this));
-        if (amount > balance) revert CreditFacilityExceedsLimit();
+        uint256 undeployed = balance > drawn ? balance - drawn : 0;
+        if (amount > undeployed) revert CreditFacilityExceedsLimit();
         token.safeTransfer(lender, amount);
         emit Withdrawn(lender, amount);
     }

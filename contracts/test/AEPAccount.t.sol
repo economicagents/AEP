@@ -373,6 +373,31 @@ contract AEPAccountTest is Test {
         assertEq(address(depositOwner).balance, ownerBalanceBefore + 0.5 ether);
     }
 
+    function test_FrozenBlocksWithdrawDepositTo() public {
+        ReceiveHelper depositOwner = new ReceiveHelper();
+        vm.deal(address(depositOwner), 2 ether);
+
+        account = factory.deployAccount(address(depositOwner), bytes32(uint256(23)));
+
+        vm.prank(address(depositOwner));
+        AEPAccount(payable(account)).addDeposit{value: 1 ether}();
+
+        vm.startPrank(address(depositOwner));
+        AEPAccount(payable(account)).setFrozen(true);
+        vm.expectRevert(AEPAccount.AEPAccountFrozen.selector);
+        AEPAccount(payable(account)).withdrawDepositTo(payable(address(depositOwner)), 0.5 ether);
+        vm.stopPrank();
+    }
+
+    function test_InitializeWithModulesRejectsDuplicateModules() public {
+        address module = address(new MockERC20());
+        address[] memory modules = new address[](2);
+        modules[0] = module;
+        modules[1] = module;
+        vm.expectRevert(AEPAccountFactory.AEPAccountFactoryCreate2Failed.selector);
+        factory.deployAccountWithModules(owner, bytes32(uint256(24)), modules);
+    }
+
     function test_NonOwnerCannotWithdrawDeposit() public {
         account = factory.deployAccount(owner, bytes32(uint256(22)));
         vm.deal(owner, 1 ether);

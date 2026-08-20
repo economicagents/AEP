@@ -474,7 +474,7 @@ const program = new Command();
 program
   .name("aep")
   .description("AEP (Agent Economic Protocol) CLI")
-  .version("0.1.0")
+  .version("0.3.0")
   .option("--json", "Emit compact JSON on stdout for supported commands")
   .option(
     "--keystore-password-file <path>",

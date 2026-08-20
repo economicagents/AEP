@@ -5,6 +5,8 @@ import { GitHubLogo, DiscordLogo } from "@/components/ProviderLogos";
 import { DitherVisual } from "@/components/DitherVisual";
 import { BookOpenIcon } from "@/components/icons";
 import { GITHUB_REPO } from "@/lib/github";
+import { LandingBtnRow } from "./LandingSection";
+import { InViewReveal } from "@/components/InViewReveal";
 
 const PUBLIC_API_URL = "https://api.economicagents.org";
 
@@ -13,7 +15,7 @@ export function GetStartedSection() {
     <section className="border-divider relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
         <div
-          className="absolute right-0 bottom-0 opacity-[0.06]"
+          className="absolute bottom-0 right-0 opacity-[0.06]"
           style={{
             width: "clamp(180px, 24vw, 280px)",
             height: "clamp(180px, 24vw, 280px)",
@@ -31,61 +33,55 @@ export function GetStartedSection() {
           />
         </div>
       </div>
-      <div className="relative z-10 mx-auto w-full max-w-5xl section-padding-x py-8 sm:py-12 md:py-16">
-        <div className="section-layout-cta-centered">
-          <div className="cta-content">
-            <h2
-              className="text-2xl sm:text-3xl font-semibold tracking-tight"
-              style={{ color: "var(--foreground)" }}
-            >
-              Get started
-            </h2>
-            <p
-              className="mt-3 max-w-lg text-sm leading-relaxed mx-auto"
-              style={{ color: "var(--foreground)", opacity: 0.6 }}
-            >
-              AEP is live on Base Sepolia and Base mainnet. The hosted reference
-              API is operational — use the quick start, SDK, and docs to integrate,
-              or call the API directly.
-            </p>
-            <div className="mt-6 flex flex-col sm:flex-row sm:flex-wrap justify-center gap-3 sm:gap-4 text-sm">
-              <Link
-                href="/docs/getting-started/quickstart"
-                className="btn-landing btn-landing-secondary inline-flex items-center justify-center gap-2 w-full sm:w-auto"
-              >
-                <BookOpenIcon className="size-4 shrink-0" />
-                Quick start guide
-              </Link>
-              <Link
-                href={PUBLIC_API_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-landing btn-landing-secondary inline-flex items-center justify-center gap-2 w-full sm:w-auto"
-              >
-                Public API
-              </Link>
-              <Link
-                href={GITHUB_REPO}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-landing btn-landing-secondary inline-flex items-center justify-center gap-2 w-full sm:w-auto"
-              >
-                <GitHubLogo size={16} />
-                GitHub
-              </Link>
-              <span
-                role="button"
-                aria-label="Discord"
-                title="Coming soon"
-                onClick={(e) => e.preventDefault()}
-                className="btn-landing btn-landing-secondary inline-flex items-center justify-center gap-2 w-full sm:w-auto cursor-pointer"
-              >
-                <DiscordLogo size={16} />
-                Discord
-              </span>
+      <div className="landing-section-inner section-padding-x relative z-10">
+        <InViewReveal>
+          <div className="section-layout-cta-centered">
+            <div className="cta-content">
+              <h2 className="landing-section-title">Get started</h2>
+              <p className="landing-section-lead mx-auto mt-3 max-w-lg">
+                AEP is live on Base Sepolia and Base mainnet. The hosted
+                reference API is operational — use the quick start, SDK, and
+                docs to integrate, or call the API directly.
+              </p>
+              <LandingBtnRow>
+                <Link
+                  href="/docs/getting-started/quickstart"
+                  className="btn-landing btn-landing-secondary inline-flex w-full items-center justify-center gap-2 sm:w-auto"
+                >
+                  <BookOpenIcon className="size-4 shrink-0" />
+                  Quick start guide
+                </Link>
+                <Link
+                  href={PUBLIC_API_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-landing btn-landing-secondary inline-flex w-full items-center justify-center gap-2 sm:w-auto"
+                >
+                  Public API
+                </Link>
+                <Link
+                  href={GITHUB_REPO}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-landing btn-landing-secondary inline-flex w-full items-center justify-center gap-2 sm:w-auto"
+                >
+                  <GitHubLogo size={16} />
+                  GitHub
+                </Link>
+                <span
+                  role="button"
+                  aria-label="Discord"
+                  title="Coming soon"
+                  onClick={(e) => e.preventDefault()}
+                  className="btn-landing btn-landing-secondary inline-flex w-full cursor-pointer items-center justify-center gap-2 sm:w-auto"
+                >
+                  <DiscordLogo size={16} />
+                  Discord
+                </span>
+              </LandingBtnRow>
             </div>
           </div>
-        </div>
+        </InViewReveal>
       </div>
     </section>
   );
