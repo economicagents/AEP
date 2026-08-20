@@ -204,4 +204,32 @@ contract SLAContractTest is Test {
         vm.expectRevert(SLAContract.SLAContractNotStaked.selector);
         sla.unstake();
     }
+
+    function test_RequestUnstakeRevertsWhenNotStaked() public {
+        vm.prank(provider);
+        vm.expectRevert(SLAContract.SLAContractNotStaked.selector);
+        sla.requestUnstake();
+    }
+
+    function test_DeclareBreachRevertsNotStaked() public {
+        vm.prank(consumer);
+        vm.expectRevert(SLAContract.SLAContractNotStaked.selector);
+        sla.declareBreach(REQUEST_HASH);
+    }
+
+    function test_GetStateMatchesInternalBalances() public {
+        vm.startPrank(provider);
+        token.approve(address(sla), STAKE_AMOUNT);
+        sla.stake();
+        vm.stopPrank();
+
+        (bool staked, bool breached, uint256 stakedBalance,) = sla.getState();
+        assertTrue(staked);
+        assertFalse(breached);
+        assertEq(stakedBalance, STAKE_AMOUNT);
+    }
+
+    function test_UnstakeDelayIsSevenDays() public view {
+        assertEq(sla.UNSTAKE_DELAY(), 7 days);
+    }
 }
