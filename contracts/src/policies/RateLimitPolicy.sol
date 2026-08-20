@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.23;
 
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {IPolicyModule} from "../interfaces/IPolicyModule.sol";
 import {PackedUserOperation} from "../vendor/interfaces/PackedUserOperation.sol";
 
@@ -9,10 +8,9 @@ import {PackedUserOperation} from "../vendor/interfaces/PackedUserOperation.sol"
  * @title RateLimitPolicy
  * @notice Limits transactions per time window to prevent runaway micro-payment spam.
  */
-contract RateLimitPolicy is IPolicyModule, Initializable {
+contract RateLimitPolicy is IPolicyModule {
     error RateLimitPolicyNotOwner();
     error RateLimitPolicyNotAccount();
-    error RateLimitPolicyAlreadyInitialized();
     error RateLimitPolicyZeroOwner();
     error RateLimitPolicyZeroAccount();
     /// @dev When maxTxPerWindow > 0, windowSeconds must be > 0 or check/recordSpend window math treats every tx as a new window (limit ineffective).
@@ -49,15 +47,6 @@ contract RateLimitPolicy is IPolicyModule, Initializable {
     }
 
     constructor(address _account, address _owner) {
-        if (_account == address(0)) revert RateLimitPolicyZeroAccount();
-        if (_owner == address(0)) revert RateLimitPolicyZeroOwner();
-        account = _account;
-        owner = _owner;
-    }
-
-    /// @dev Policy modules must be deployed via factory or initialize called atomically in same tx as deployment.
-    function initialize(address _account, address _owner) external initializer {
-        if (account != address(0)) revert RateLimitPolicyAlreadyInitialized();
         if (_account == address(0)) revert RateLimitPolicyZeroAccount();
         if (_owner == address(0)) revert RateLimitPolicyZeroOwner();
         account = _account;

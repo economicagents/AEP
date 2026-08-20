@@ -21,12 +21,12 @@ This document describes the attack surfaces and mitigations for the Agent Econom
 - Calling `execute` directly as owner bypasses `validateUserOp` but not `_requireFromEntryPointOrOwner` which checks `frozen`. Policy modules are only invoked when the EntryPoint calls `validateUserOp`. Owner-direct calls are intentionally allowed for admin operations.
 - Malicious UserOp construction that tricks calldata decoding (e.g. nested calls that extract wrong amount).
 
-**PaymentDecoder patterns:** Recognized calldata: `execute`/`executeBatch` with inner `transfer`/`transferFrom`; direct `transfer`/`transferFrom`. Unrecognized patterns yield `totalAmount = 0` (passes BudgetPolicy) but remain subject to CounterpartyPolicy. Nested contract calls that perform transfers via callbacks are not decoded; use recognized patterns for budget-critical flows.
+**PaymentDecoder patterns:** Recognized calldata: `execute`/`executeBatch` with inner `transfer`, `transferFrom`, `approve`, or `increaseAllowance`; direct ETH value when inner call is unrecognized. Unrecognized patterns (e.g. nested contract calls, `permit`, custom token hooks) yield `totalAmount = 0` (passes BudgetPolicy) but remain subject to CounterpartyPolicy when a recipient is decoded. **Owner-direct `execute` bypasses all policy modules** — only EntryPoint-originated UserOps invoke `validateUserOp`. Treat owner key compromise as full policy bypass.
 
 **Mitigations:**
 - Policy enforcement in `validateUserOp` is mandatory for all EntryPoint-originated transactions.
-- `PaymentDecoder` only recognizes `execute`/`executeBatch` and `transfer`/`transferFrom` patterns. Unrecognized calldata yields 0 amount (passes budget) but may fail counterparty if recipient is blocked.
-- Owner key compromise allows full bypass; see Key Management.
+- `PaymentDecoder` recognizes `execute`/`executeBatch` with inner `transfer`, `transferFrom`, `approve`, and `increaseAllowance`. Unrecognized calldata yields 0 amount (passes budget) but may fail counterparty if recipient is blocked.
+- Owner key compromise allows full bypass including `withdrawDepositTo`; `setFrozen(true)` blocks execution **and** EntryPoint deposit withdrawal.
 
 ### 2. ERC-8004 Reputation Manipulation
 
@@ -52,7 +52,7 @@ This document describes the attack surfaces and mitigations for the Agent Econom
 - Session key (future): scoped to policy bounds; damage limited to remaining budget in window.
 
 **Mitigations:**
-- **Kill switch:** `setFrozen(true)` stops all execution (including owner-direct). Owner should call this immediately on suspected compromise.
+- **Kill switch:** `setFrozen(true)` stops all execution (including owner-direct) **and** blocks `withdrawDepositTo`. Owner should call this immediately on suspected compromise.
 - **Key hierarchy (documented):** See [COOKBOOK](COOKBOOK.md) and skills/aep-key-management. Owner (cold), operator (warm), session keys (hot). AEP implements owner-only; operator/session keys are deferred.
 - Recommend hardware wallet for owner key.
 
@@ -130,11 +130,17 @@ This document describes the attack surfaces and mitigations for the Agent Econom
 - **Borrower draw front-run:** If reputation drops between intent and execution, draw reverts. Acceptable.
 - **Reputation manipulation:** Same as account (Sybil, collusion). Min-reputation and client list provide baseline.
 - **Default declaration:** Only the lender can call `declareDefault` after the repayment deadline. Lender should submit negative feedback separately.
+- **Withdraw while drawn:** Lender may withdraw only **undeployed** balance (`balance - drawn`); drawn principal remains in the facility until repaid. *(Remediated M-1, Aug 2026.)*
+- **Fee-on-transfer tokens:** Deposit and repay credit the **received** balance delta, not the nominal transfer amount. *(Remediated M-1, Aug 2026.)*
+- **Factory access:** Only the lender may call `createFacility`; zero credit limit is rejected. *(Remediated M-2, Aug 2026.)*
 
 **Conditional Escrow:**
 - **Validator collusion:** Provider or consumer could collude with validator. Use trusted validators; document as trust assumption.
-- **Consumer/provider dispute abuse:** Dispute checks validation; if validation passed, dispute reverts. Timeout allows dispute when no validation submitted.
+- **Consumer/provider dispute abuse:** Dispute reverts when the **designated** `validatorAddress` has submitted a passing validation. Timeout allows dispute when no validation submitted or validation failed. *(Remediated M-3, Aug 2026.)*
 - **Validation timeout:** Provider can delay indefinitely; consumer can dispute from FUNDED or IN_PROGRESS to cancel.
+- **Unsubmitted milestones:** Release reverts for milestones with no submitted `requestHash`. *(Remediated M-3, Aug 2026.)*
+- **Acknowledge before fund:** Provider cannot acknowledge until consumer has funded (`amount > 0`). *(Remediated M-3, Aug 2026.)*
+- **Fee-on-transfer tokens:** Fund, release, and dispute use balance-delta accounting where applicable. *(Remediated M-3, Aug 2026.)*
 
 **Revenue Splitter:**
 - **Weight manipulation:** Weights fixed at deploy. Recipients must verify before funding.
@@ -143,6 +149,8 @@ This document describes the attack surfaces and mitigations for the Agent Econom
 **SLA Contract:**
 - **False breach claims:** Consumer must provide valid requestHash with response < threshold. Validator must be honest.
 - **Validator collusion:** Provider could collude with validator to avoid breach. Document as trust assumption.
+- **Instant unstake:** Provider must call `requestUnstake` and wait **7 days** before `unstake`; stake remains slashable during the delay. *(Remediated H-1, Aug 2026.)*
+- **Fee-on-transfer tokens:** Stake, breach payout, and unstake use `stakedBalance` (balance-delta on stake). Zero stake amount rejected at deploy. *(Remediated H-1, Aug 2026.)*
 
 ### 9. Economic Graph
 

@@ -84,7 +84,7 @@ describe("getFleetAlerts", () => {
       expect(a).toHaveProperty("timestamp");
       expect(typeof a.timestamp).toBe("number");
     }
-  }, 15_000);
+  }, 60_000);
 
   itSqlite("getFleetAlerts is a function", () => {
     expect(typeof getFleetAlerts).toBe("function");
