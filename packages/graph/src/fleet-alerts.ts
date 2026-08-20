@@ -6,11 +6,13 @@
 import { createPublicClient, parseAbiItem, isAddress } from "viem";
 import { transportFromRpcUrl } from "@economicagents/viem-rpc";
 import { base, baseSepolia } from "viem/chains";
-import type { Address } from "viem";
+import type { Address, Log } from "viem";
 import { getDatabase } from "./store.js";
 
 /** Base public RPCs (e.g. sepolia.base.org) cap eth_getLogs to 2000 blocks. */
 const CHUNK_SIZE = 2000n;
+/** Cap parallel eth_getLogs calls to stay within public RPC rate limits. */
+const LOG_CHUNK_CONCURRENCY = 4;
 const DEFAULT_ENTRYPOINT = "0x0000000071727De22E5E9d8BAf0edAc6f37da032" as const;
 const DEFAULT_BLOCK_RANGE = 50_000;
 
@@ -30,6 +32,52 @@ export interface GetFleetAlertsOptions {
   entryPointAddress?: Address;
   /** Chain ID (84532 Base Sepolia, 8453 Base mainnet). Default 84532. */
   chainId?: number;
+}
+
+type BlockChunk = { start: bigint; end: bigint };
+
+function blockChunks(fromBlock: number, toBlock: number): BlockChunk[] {
+  const chunks: BlockChunk[] = [];
+  for (let start = BigInt(fromBlock); start <= toBlock; start += CHUNK_SIZE) {
+    const end =
+      start + CHUNK_SIZE > BigInt(toBlock) ? BigInt(toBlock) : start + CHUNK_SIZE;
+    chunks.push({ start, end });
+  }
+  return chunks;
+}
+
+class ConcurrencyPool {
+  private inFlight = 0;
+  private readonly waiters: Array<() => void> = [];
+
+  constructor(private readonly limit: number) {}
+
+  async run<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.inFlight >= this.limit) {
+      await new Promise<void>((resolve) => this.waiters.push(resolve));
+    }
+    this.inFlight++;
+    try {
+      return await fn();
+    } finally {
+      this.inFlight--;
+      const next = this.waiters.shift();
+      if (next) next();
+    }
+  }
+}
+
+async function fetchLogsInBlockRange(
+  pool: ConcurrencyPool,
+  fromBlock: number,
+  toBlock: number,
+  fetchChunk: (start: bigint, end: bigint) => Promise<Log[]>
+): Promise<Log[]> {
+  const chunks = blockChunks(fromBlock, toBlock);
+  const chunkLogs = await Promise.all(
+    chunks.map(({ start, end }) => pool.run(() => fetchChunk(start, end)))
+  );
+  return chunkLogs.flat();
 }
 
 export async function getFleetAlerts(
@@ -89,22 +137,29 @@ export async function getFleetAlerts(
 
   const alerts: FleetAlert[] = [];
   const accountSet = new Set(normalized);
+  const pool = new ConcurrencyPool(LOG_CHUNK_CONCURRENCY);
 
   const addAlert = (alert: Omit<FleetAlert, "timestamp">) => {
     alerts.push({ ...alert, timestamp: now });
   };
 
+  const scanTasks: Array<() => Promise<void>> = [];
+
   // 3. AEPAccount Frozen
   if (normalized.length > 0) {
-    for (let start = BigInt(fromBlock); start <= toBlock; start += CHUNK_SIZE) {
-      const end =
-        start + CHUNK_SIZE > BigInt(toBlock) ? BigInt(toBlock) : start + CHUNK_SIZE;
-      const logs = await client.getLogs({
-        address: normalized as Address[],
-        event: parseAbiItem("event Frozen(bool frozen)"),
-        fromBlock: start,
-        toBlock: end,
-      });
+    scanTasks.push(async () => {
+      const logs = await fetchLogsInBlockRange(
+        pool,
+        fromBlock,
+        toBlock,
+        (start, end) =>
+          client.getLogs({
+            address: normalized as Address[],
+            event: parseAbiItem("event Frozen(bool frozen)"),
+            fromBlock: start,
+            toBlock: end,
+          })
+      );
       for (const log of logs) {
         const args = (log as { args?: { frozen?: boolean } }).args;
         addAlert({
@@ -116,20 +171,24 @@ export async function getFleetAlerts(
           data: { frozen: args?.frozen ?? false },
         });
       }
-    }
+    });
   }
 
   // 4. AEPAccount PolicyRecordSpendFailed
   if (normalized.length > 0) {
-    for (let start = BigInt(fromBlock); start <= toBlock; start += CHUNK_SIZE) {
-      const end =
-        start + CHUNK_SIZE > BigInt(toBlock) ? BigInt(toBlock) : start + CHUNK_SIZE;
-      const logs = await client.getLogs({
-        address: normalized as Address[],
-        event: parseAbiItem("event PolicyRecordSpendFailed(address indexed module)"),
-        fromBlock: start,
-        toBlock: end,
-      });
+    scanTasks.push(async () => {
+      const logs = await fetchLogsInBlockRange(
+        pool,
+        fromBlock,
+        toBlock,
+        (start, end) =>
+          client.getLogs({
+            address: normalized as Address[],
+            event: parseAbiItem("event PolicyRecordSpendFailed(address indexed module)"),
+            fromBlock: start,
+            toBlock: end,
+          })
+      );
       for (const log of logs) {
         const args = (log as { args?: { module?: Address } }).args;
         addAlert({
@@ -141,20 +200,24 @@ export async function getFleetAlerts(
           data: { module: args?.module },
         });
       }
-    }
+    });
   }
 
   // 5. CreditFacility Frozen
   if (facilityAddresses.length > 0) {
-    for (let start = BigInt(fromBlock); start <= toBlock; start += CHUNK_SIZE) {
-      const end =
-        start + CHUNK_SIZE > BigInt(toBlock) ? BigInt(toBlock) : start + CHUNK_SIZE;
-      const logs = await client.getLogs({
-        address: facilityAddresses as Address[],
-        event: parseAbiItem("event Frozen(bool frozen)"),
-        fromBlock: start,
-        toBlock: end,
-      });
+    scanTasks.push(async () => {
+      const logs = await fetchLogsInBlockRange(
+        pool,
+        fromBlock,
+        toBlock,
+        (start, end) =>
+          client.getLogs({
+            address: facilityAddresses as Address[],
+            event: parseAbiItem("event Frozen(bool frozen)"),
+            fromBlock: start,
+            toBlock: end,
+          })
+      );
       for (const log of logs) {
         const args = (log as { args?: { frozen?: boolean } }).args;
         addAlert({
@@ -166,20 +229,24 @@ export async function getFleetAlerts(
           data: { frozen: args?.frozen ?? false },
         });
       }
-    }
+    });
   }
 
   // 6. CreditFacility DefaultDeclared
   if (facilityAddresses.length > 0) {
-    for (let start = BigInt(fromBlock); start <= toBlock; start += CHUNK_SIZE) {
-      const end =
-        start + CHUNK_SIZE > BigInt(toBlock) ? BigInt(toBlock) : start + CHUNK_SIZE;
-      const logs = await client.getLogs({
-        address: facilityAddresses as Address[],
-        event: parseAbiItem("event DefaultDeclared(address indexed borrower)"),
-        fromBlock: start,
-        toBlock: end,
-      });
+    scanTasks.push(async () => {
+      const logs = await fetchLogsInBlockRange(
+        pool,
+        fromBlock,
+        toBlock,
+        (start, end) =>
+          client.getLogs({
+            address: facilityAddresses as Address[],
+            event: parseAbiItem("event DefaultDeclared(address indexed borrower)"),
+            fromBlock: start,
+            toBlock: end,
+          })
+      );
       for (const log of logs) {
         const args = (log as { args?: { borrower?: Address } }).args;
         addAlert({
@@ -191,22 +258,26 @@ export async function getFleetAlerts(
           data: { borrower: args?.borrower },
         });
       }
-    }
+    });
   }
 
   // 7. SLAContract BreachDeclared
   if (slaAddresses.length > 0) {
-    for (let start = BigInt(fromBlock); start <= toBlock; start += CHUNK_SIZE) {
-      const end =
-        start + CHUNK_SIZE > BigInt(toBlock) ? BigInt(toBlock) : start + CHUNK_SIZE;
-      const logs = await client.getLogs({
-        address: slaAddresses as Address[],
-        event: parseAbiItem(
-          "event BreachDeclared(address indexed consumer, bytes32 indexed requestHash, uint256 amount)"
-        ),
-        fromBlock: start,
-        toBlock: end,
-      });
+    scanTasks.push(async () => {
+      const logs = await fetchLogsInBlockRange(
+        pool,
+        fromBlock,
+        toBlock,
+        (start, end) =>
+          client.getLogs({
+            address: slaAddresses as Address[],
+            event: parseAbiItem(
+              "event BreachDeclared(address indexed consumer, bytes32 indexed requestHash, uint256 amount)"
+            ),
+            fromBlock: start,
+            toBlock: end,
+          })
+      );
       for (const log of logs) {
         const args = (log as {
           args?: { consumer?: Address; requestHash?: `0x${string}`; amount?: bigint };
@@ -224,22 +295,26 @@ export async function getFleetAlerts(
           },
         });
       }
-    }
+    });
   }
 
   // 8. EntryPoint UserOperationRevertReason (filter by sender in fleet accounts)
   if (accountSet.size > 0) {
-    for (let start = BigInt(fromBlock); start <= toBlock; start += CHUNK_SIZE) {
-      const end =
-        start + CHUNK_SIZE > BigInt(toBlock) ? BigInt(toBlock) : start + CHUNK_SIZE;
-      const logs = await client.getLogs({
-        address: entryPoint,
-        event: parseAbiItem(
-          "event UserOperationRevertReason(bytes32 indexed userOpHash, address indexed sender, uint256 nonce, bytes revertReason)"
-        ),
-        fromBlock: start,
-        toBlock: end,
-      });
+    scanTasks.push(async () => {
+      const logs = await fetchLogsInBlockRange(
+        pool,
+        fromBlock,
+        toBlock,
+        (start, end) =>
+          client.getLogs({
+            address: entryPoint,
+            event: parseAbiItem(
+              "event UserOperationRevertReason(bytes32 indexed userOpHash, address indexed sender, uint256 nonce, bytes revertReason)"
+            ),
+            fromBlock: start,
+            toBlock: end,
+          })
+      );
       for (const log of logs) {
         const args = (log as {
           args?: {
@@ -264,7 +339,11 @@ export async function getFleetAlerts(
           });
         }
       }
-    }
+    });
+  }
+
+  for (const scan of scanTasks) {
+    await scan();
   }
 
   alerts.sort((a, b) => b.blockNumber - a.blockNumber);
