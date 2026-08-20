@@ -10,7 +10,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
  * @title ConditionalEscrow
  * @notice Escrow for multi-step agent workflows. Consumer deposits; provider executes; release on 8004 validation.
  *         Supports single-amount (legacy) or multi-milestone with partial release.
- *         Uses SafeERC20 for compatibility with non-standard ERC-20 and fee-on-transfer tokens.
+ *         Uses balance-delta accounting for fee-on-transfer tokens. Dispute honors only the designated validator.
  */
 contract ConditionalEscrow is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -31,12 +31,14 @@ contract ConditionalEscrow is ReentrancyGuard {
     error ConditionalEscrowNotConsumer();
     error ConditionalEscrowNotProvider();
     error ConditionalEscrowWrongState();
+    error ConditionalEscrowNotFunded();
     error ConditionalEscrowZeroAmount();
     error ConditionalEscrowValidationFailed();
     error ConditionalEscrowAgentMismatch();
     error ConditionalEscrowZeroAddress();
     error ConditionalEscrowInvalidMilestoneIndex();
     error ConditionalEscrowMilestoneAlreadySubmitted();
+    error ConditionalEscrowMilestoneNotSubmitted();
 
     event Funded(address indexed consumer, uint256 amount);
     event Acknowledged(address indexed provider);
@@ -122,13 +124,17 @@ contract ConditionalEscrow is ReentrancyGuard {
             }
             if (_amount != total) revert ConditionalEscrowWrongState();
         }
-        amount = _amount;
+        uint256 balanceBefore = token.balanceOf(address(this));
         token.safeTransferFrom(consumer, address(this), _amount);
-        emit Funded(consumer, _amount);
+        uint256 received = token.balanceOf(address(this)) - balanceBefore;
+        if (received == 0) revert ConditionalEscrowZeroAmount();
+        amount = received;
+        emit Funded(consumer, received);
     }
 
     function acknowledge() external onlyProvider {
         if (state != State.FUNDED) revert ConditionalEscrowWrongState();
+        if (amount == 0) revert ConditionalEscrowNotFunded();
         state = State.IN_PROGRESS;
         emit Acknowledged(provider);
     }
@@ -161,6 +167,7 @@ contract ConditionalEscrow is ReentrancyGuard {
             if (_milestoneIndex >= milestones.length) revert ConditionalEscrowInvalidMilestoneIndex();
             Milestone storage m = milestones[_milestoneIndex];
             if (m.released) revert ConditionalEscrowWrongState();
+            if (m.requestHash == bytes32(0)) revert ConditionalEscrowMilestoneNotSubmitted();
             (address validator, uint256 agentId, uint8 response,,,) =
                 validationRegistry.getValidationStatus(m.requestHash);
             if (validator == address(0)) revert ConditionalEscrowValidationFailed();
@@ -187,6 +194,7 @@ contract ConditionalEscrow is ReentrancyGuard {
             }
         } else {
             if (_milestoneIndex != 0) revert ConditionalEscrowInvalidMilestoneIndex();
+            if (requestHash == bytes32(0)) revert ConditionalEscrowMilestoneNotSubmitted();
             (address validator, uint256 agentId, uint8 response,,,) =
                 validationRegistry.getValidationStatus(requestHash);
             if (validator == address(0)) revert ConditionalEscrowValidationFailed();
@@ -216,7 +224,9 @@ contract ConditionalEscrow is ReentrancyGuard {
             try validationRegistry.getValidationStatus(hashToCheck) returns (
                 address validator, uint256 agentId, uint8 response, bytes32, string memory, uint256
             ) {
-                if (validator != address(0) && agentId == providerAgentId && response >= releaseThreshold) {
+                if (
+                    validator == validatorAddress && agentId == providerAgentId && response >= releaseThreshold
+                ) {
                     revert ConditionalEscrowValidationFailed();
                 }
             } catch {
@@ -224,22 +234,12 @@ contract ConditionalEscrow is ReentrancyGuard {
             }
         }
         state = State.DISPUTED;
-        uint256 toReturn = _useMilestones() ? _remainingAmount() : amount;
+        uint256 balanceBefore = token.balanceOf(address(this));
+        uint256 toReturn = balanceBefore;
         if (toReturn > 0) {
             token.safeTransfer(consumer, toReturn);
         }
         emit Disputed(consumer, toReturn);
-    }
-
-    function _remainingAmount() internal view returns (uint256) {
-        uint256 remaining = 0;
-        uint256 len = milestones.length;
-        for (uint256 i = 0; i < len; i++) {
-            if (!milestones[i].released) {
-                remaining += milestones[i].amount;
-            }
-        }
-        return remaining;
     }
 
     function getState() external view returns (State _state, uint256 _amount, bytes32 _requestHash) {

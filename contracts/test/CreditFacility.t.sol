@@ -196,7 +196,24 @@ contract CreditFacilityTest is Test {
         facility.declareDefault();
     }
 
-    function test_WithdrawRevertsWhenDrawnOutstanding() public {
+    function test_WithdrawUndeployedWhileDrawnOutstanding() public {
+        vm.startPrank(lender);
+        token.approve(address(facility), 500e6);
+        facility.deposit(500e6);
+        vm.stopPrank();
+
+        vm.prank(borrower);
+        facility.draw(200e6);
+
+        vm.startPrank(lender);
+        facility.withdraw(100e6);
+        vm.stopPrank();
+
+        assertEq(token.balanceOf(address(facility)), 200e6);
+        assertEq(facility.drawn(), 200e6);
+    }
+
+    function test_WithdrawRevertsWhenExceedsUndeployed() public {
         vm.startPrank(lender);
         token.approve(address(facility), 500e6);
         facility.deposit(500e6);
@@ -206,8 +223,8 @@ contract CreditFacilityTest is Test {
         facility.draw(200e6);
 
         vm.prank(lender);
-        vm.expectRevert(CreditFacility.CreditFacilityDrawnOutstanding.selector);
-        facility.withdraw(300e6);
+        vm.expectRevert(CreditFacility.CreditFacilityExceedsLimit.selector);
+        facility.withdraw(301e6);
     }
 
     function test_Unfreeze() public {

@@ -341,7 +341,7 @@ forge test --match-contract SLAContractTest
 
 **Report:** [audit-report.md](audit-report.md) — **AI-assisted** deep review (methodology and limitations in the report). For production or high-value deployments, plan a **human-led third-party audit** in addition to your own review.
 
-**Status:** Post-remediation. 0 Critical, 0 High, 0 Medium, 0 Low, 0 Informational in the latest revision (historical findings I-11 through I-14 remediated; see report tables).
+**Status:** Post-remediation (August 20, 2026). **0 Critical, 0 High, 0 Medium, 0 Low, 0 Informational** for this pass. Findings **H-1**, **M-1–M-3**, and **L-4–L-11** remediated (see [audit-report.md](audit-report.md)). This is an **AI-assisted internal pass**, not a third-party firm audit — plan a human-led audit before high-value mainnet use.
 
 ---
 

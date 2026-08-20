@@ -201,6 +201,79 @@ contract ConditionalEscrowTest is Test {
         );
     }
 
+    function test_AcknowledgeRevertsNotFunded() public {
+        vm.expectRevert(ConditionalEscrow.ConditionalEscrowNotFunded.selector);
+        vm.prank(provider);
+        escrow.acknowledge();
+    }
+
+    function test_ReleaseRevertsUnsubmittedMilestone() public {
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 200e6;
+        amounts[1] = 300e6;
+        ConditionalEscrow milestoneEscrow = new ConditionalEscrow(
+            consumer, provider, PROVIDER_AGENT_ID, address(token), address(validationRegistry), validator, 80, amounts
+        );
+        token.mint(consumer, 500e6);
+
+        vm.startPrank(consumer);
+        token.approve(address(milestoneEscrow), 500e6);
+        milestoneEscrow.fund(500e6);
+        vm.stopPrank();
+
+        vm.prank(provider);
+        milestoneEscrow.acknowledge();
+
+        bytes32 hash0 = keccak256("milestone-0");
+        validationRegistry.setValidation(hash0, validator, PROVIDER_AGENT_ID, 90);
+        vm.prank(provider);
+        milestoneEscrow.submitForValidation(hash0, 0);
+
+        vm.expectRevert(ConditionalEscrow.ConditionalEscrowMilestoneNotSubmitted.selector);
+        milestoneEscrow.release(1);
+    }
+
+    function test_DisputeRevertsWhenDesignatedValidatorPassed() public {
+        vm.startPrank(consumer);
+        token.approve(address(escrow), AMOUNT);
+        escrow.fund(AMOUNT);
+        vm.stopPrank();
+
+        vm.prank(provider);
+        escrow.acknowledge();
+
+        validationRegistry.setValidation(REQUEST_HASH, validator, PROVIDER_AGENT_ID, 90);
+
+        vm.prank(provider);
+        escrow.submitForValidation(REQUEST_HASH, 0);
+
+        vm.prank(consumer);
+        vm.expectRevert(ConditionalEscrow.ConditionalEscrowValidationFailed.selector);
+        escrow.dispute();
+    }
+
+    function test_DisputeAllowedWhenNonDesignatedValidatorPassed() public {
+        vm.startPrank(consumer);
+        token.approve(address(escrow), AMOUNT);
+        escrow.fund(AMOUNT);
+        vm.stopPrank();
+
+        vm.prank(provider);
+        escrow.acknowledge();
+
+        address otherValidator = makeAddr("otherValidator");
+        validationRegistry.setValidation(REQUEST_HASH, otherValidator, PROVIDER_AGENT_ID, 90);
+
+        vm.prank(provider);
+        escrow.submitForValidation(REQUEST_HASH, 0);
+
+        vm.prank(consumer);
+        escrow.dispute();
+
+        assertEq(uint256(escrow.state()), 4);
+        assertEq(token.balanceOf(consumer), 1000e6);
+    }
+
     function test_FundRevertsZeroAmount() public {
         vm.prank(consumer);
         vm.expectRevert(ConditionalEscrow.ConditionalEscrowZeroAmount.selector);
