@@ -8,3 +8,14 @@ export { PersonasSection } from "./PersonasSection";
 export { StandardsSection } from "./StandardsSection";
 export { GetStartedSection } from "./GetStartedSection";
 export { LandingFooter } from "./LandingFooter";
+export {
+  LandingSection,
+  LandingSectionHeader,
+  LandingBtnRow,
+  LandingContentNarrow,
+} from "./LandingSection";
+export {
+  LandingPanel,
+  LandingCard,
+  LandingStripCard,
+} from "./LandingPanel";

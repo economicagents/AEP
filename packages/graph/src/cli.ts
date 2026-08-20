@@ -54,7 +54,7 @@ const program = new Command();
 program
   .name("aep-graph")
   .description("AEP economic graph: sync on-chain events into local SQLite graph store")
-  .version("0.2.0")
+  .version("0.3.0")
   .addHelpText(
     "after",
     `\nExamples:\n  $ aep-graph sync\n  $ aep-graph sync -r https://sepolia.base.org --graph-path ~/.aep/graph\n`

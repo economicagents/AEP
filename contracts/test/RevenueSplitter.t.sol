@@ -86,4 +86,29 @@ contract RevenueSplitterTest is Test {
         vm.expectRevert(RevenueSplitter.RevenueSplitterInvalidWeights.selector);
         new RevenueSplitter(recipients, weights, address(token));
     }
+
+    function test_RecipientsImmutableNoSetter() public view {
+        assertEq(splitter.recipients(0), alice);
+        assertEq(splitter.recipients(1), bob);
+        assertEq(splitter.recipients(2), carol);
+        assertEq(splitter.weights(0), 5000);
+    }
+
+    function test_GetStateReturnsRecipientsWeightsBalance() public {
+        require(token.transfer(address(splitter), 50e6), "transfer failed");
+        (address[] memory recipients, uint256[] memory weights, uint256 balance) = splitter.getState();
+        assertEq(recipients.length, 3);
+        assertEq(weights.length, 3);
+        assertEq(balance, 50e6);
+    }
+
+    function test_ConstructorRevertsZeroToken() public {
+        address[] memory recipients = new address[](1);
+        recipients[0] = alice;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 10000;
+
+        vm.expectRevert(RevenueSplitter.RevenueSplitterZeroAddress.selector);
+        new RevenueSplitter(recipients, weights, address(0));
+    }
 }
