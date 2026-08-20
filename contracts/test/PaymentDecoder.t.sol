@@ -158,5 +158,94 @@ contract PaymentDecoderTest is Test {
         bytes memory callData = abi.encodeWithSignature("unknown()");
         PaymentDecoder.PaymentInfo memory info = helper.decode(callData);
         assertEq(info.totalAmount, 0);
+        assertEq(info.recipients.length, 0);
+    }
+
+    function test_DecodeExecuteUnknownInnerUsesDestAndValue() public {
+        address router = makeAddr("router");
+        uint256 ethValue = 0.5 ether;
+        bytes memory inner = abi.encodeWithSignature("swap(bytes)", hex"deadbeef");
+        bytes memory callData = abi.encodeWithSignature("execute(address,uint256,bytes)", router, ethValue, inner);
+
+        PaymentDecoder.PaymentInfo memory info = helper.decode(callData);
+        assertEq(info.totalAmount, ethValue);
+        assertEq(info.recipients.length, 1);
+        assertEq(info.recipients[0], router);
+    }
+
+    function test_DecodeExecuteBatchEmptyValuesArray() public {
+        address[] memory dests = new address[](2);
+        dests[0] = makeAddr("router1");
+        dests[1] = makeAddr("router2");
+        uint256[] memory values = new uint256[](0);
+        bytes[] memory funcs = new bytes[](2);
+        funcs[0] = abi.encodeWithSignature("unknownCall()");
+        funcs[1] = "";
+
+        bytes memory callData =
+            abi.encodeWithSignature("executeBatch(address[],uint256[],bytes[])", dests, values, funcs);
+        PaymentDecoder.PaymentInfo memory info = helper.decode(callData);
+
+        assertEq(info.totalAmount, 0);
+        assertEq(info.recipients.length, 2);
+        assertEq(info.recipients[0], dests[0]);
+        assertEq(info.recipients[1], dests[1]);
+    }
+
+    function test_DecodeExecuteBatchUnknownInnerPerItem() public {
+        address[] memory dests = new address[](2);
+        dests[0] = makeAddr("routerA");
+        dests[1] = makeAddr("routerB");
+        uint256[] memory values = new uint256[](2);
+        values[0] = 0.1 ether;
+        values[1] = 0.2 ether;
+        bytes[] memory funcs = new bytes[](2);
+        funcs[0] = abi.encodeWithSignature("nestedExecute(address,bytes)", makeAddr("inner"), hex"");
+        funcs[1] = abi.encodeWithSignature("swap(bytes)", hex"01");
+
+        bytes memory callData =
+            abi.encodeWithSignature("executeBatch(address[],uint256[],bytes[])", dests, values, funcs);
+        PaymentDecoder.PaymentInfo memory info = helper.decode(callData);
+
+        assertEq(info.totalAmount, 0.3 ether);
+        assertEq(info.recipients[0], dests[0]);
+        assertEq(info.recipients[1], dests[1]);
+    }
+
+    function test_TransferFromMetersAllowanceAmountNotAccountOutflow() public {
+        address token = makeAddr("token");
+        address from = makeAddr("from");
+        address to = makeAddr("to");
+        uint256 amount = 3e6;
+        bytes memory inner = abi.encodeWithSignature("transferFrom(address,address,uint256)", from, to, amount);
+        bytes memory callData = abi.encodeWithSignature("execute(address,uint256,bytes)", token, 0, inner);
+
+        PaymentDecoder.PaymentInfo memory info = helper.decode(callData);
+        assertEq(info.totalAmount, amount);
+        assertEq(info.recipients[0], to);
+    }
+
+    function testFuzz_DecodeTransferAmounts(address to, uint256 amount) public {
+        to = address(uint160(bound(uint160(to), 1, type(uint160).max)));
+        amount = bound(amount, 0, type(uint128).max);
+
+        bytes memory inner = abi.encodeWithSignature("transfer(address,uint256)", to, amount);
+        bytes memory callData = abi.encodeWithSignature("execute(address,uint256,bytes)", makeAddr("token"), 0, inner);
+
+        PaymentDecoder.PaymentInfo memory info = helper.decode(callData);
+        assertEq(info.totalAmount, amount);
+        assertEq(info.recipients[0], to);
+    }
+
+    function testFuzz_DecodeApproveAmounts(address spender, uint256 amount) public {
+        spender = address(uint160(bound(uint160(spender), 1, type(uint160).max)));
+        amount = bound(amount, 0, type(uint128).max);
+
+        bytes memory inner = abi.encodeWithSignature("approve(address,uint256)", spender, amount);
+        bytes memory callData = abi.encodeWithSignature("execute(address,uint256,bytes)", makeAddr("token"), 0, inner);
+
+        PaymentDecoder.PaymentInfo memory info = helper.decode(callData);
+        assertEq(info.totalAmount, amount);
+        assertEq(info.recipients[0], spender);
     }
 }

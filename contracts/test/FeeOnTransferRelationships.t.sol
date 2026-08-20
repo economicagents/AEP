@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {SLAContract} from "../src/relationships/SLAContract.sol";
 import {CreditFacility} from "../src/relationships/CreditFacility.sol";
 import {ConditionalEscrow} from "../src/relationships/ConditionalEscrow.sol";
+import {RevenueSplitter} from "../src/relationships/RevenueSplitter.sol";
 import {MockFeeOnTransferERC20} from "./MockFeeOnTransferERC20.sol";
 import {MockERC8004Validation} from "./MockERC8004Validation.sol";
 
@@ -42,13 +43,7 @@ contract FeeOnTransferRelationshipsTest is Test {
 
     function test_SLA_StakeUsesReceivedBalance() public {
         SLAContract sla = new SLAContract(
-            provider,
-            consumer,
-            PROVIDER_AGENT_ID,
-            address(token),
-            STAKE_AMOUNT,
-            address(validationRegistry),
-            80
+            provider, consumer, PROVIDER_AGENT_ID, address(token), STAKE_AMOUNT, address(validationRegistry), 80
         );
 
         vm.startPrank(provider);
@@ -63,13 +58,7 @@ contract FeeOnTransferRelationshipsTest is Test {
 
     function test_SLA_BreachPaysConsumerStakedBalance() public {
         SLAContract sla = new SLAContract(
-            provider,
-            consumer,
-            PROVIDER_AGENT_ID,
-            address(token),
-            STAKE_AMOUNT,
-            address(validationRegistry),
-            80
+            provider, consumer, PROVIDER_AGENT_ID, address(token), STAKE_AMOUNT, address(validationRegistry), 80
         );
 
         vm.startPrank(provider);
@@ -89,15 +78,7 @@ contract FeeOnTransferRelationshipsTest is Test {
 
     function test_CreditFacility_DepositCreditsReceivedAmount() public {
         CreditFacility facility = new CreditFacility(
-            lender,
-            borrower,
-            address(token),
-            1000e6,
-            0,
-            30 days,
-            address(0),
-            address(0),
-            BORROWER_AGENT_ID
+            lender, borrower, address(token), 1000e6, 0, 30 days, address(0), address(0), BORROWER_AGENT_ID
         );
 
         uint256 depositAmount = 500e6;
@@ -112,15 +93,7 @@ contract FeeOnTransferRelationshipsTest is Test {
 
     function test_CreditFacility_RepayCreditsReceivedAmount() public {
         CreditFacility facility = new CreditFacility(
-            lender,
-            borrower,
-            address(token),
-            1000e6,
-            0,
-            30 days,
-            address(0),
-            address(0),
-            BORROWER_AGENT_ID
+            lender, borrower, address(token), 1000e6, 0, 30 days, address(0), address(0), BORROWER_AGENT_ID
         );
 
         vm.startPrank(lender);
@@ -187,5 +160,43 @@ contract FeeOnTransferRelationshipsTest is Test {
         uint256 expectedReceived = fundAmount - (fundAmount * FEE_BPS / 10_000);
         uint256 expectedNetToConsumer = expectedReceived - (expectedReceived * FEE_BPS / 10_000);
         assertEq(token.balanceOf(consumer), 2000e6 - fundAmount + expectedNetToConsumer);
+    }
+
+    function test_SLA_UnstakeFoTProviderReceivesNetAmount() public {
+        SLAContract sla = new SLAContract(
+            provider, consumer, PROVIDER_AGENT_ID, address(token), STAKE_AMOUNT, address(validationRegistry), 80
+        );
+
+        vm.startPrank(provider);
+        token.approve(address(sla), STAKE_AMOUNT);
+        sla.stake();
+        sla.requestUnstake();
+        vm.warp(block.timestamp + sla.UNSTAKE_DELAY());
+        uint256 before = token.balanceOf(provider);
+        sla.unstake();
+        vm.stopPrank();
+
+        uint256 expectedReceived = STAKE_AMOUNT - (STAKE_AMOUNT * FEE_BPS / 10_000);
+        uint256 expectedNet = expectedReceived - (expectedReceived * FEE_BPS / 10_000);
+        assertEq(token.balanceOf(provider), before + expectedNet);
+    }
+
+    function test_RevenueSplitter_DistributeFoTRecomputesFromBalance() public {
+        address[] memory recipients = new address[](2);
+        recipients[0] = provider;
+        recipients[1] = consumer;
+        uint256[] memory weights = new uint256[](2);
+        weights[0] = 5000;
+        weights[1] = 5000;
+
+        RevenueSplitter splitter = new RevenueSplitter(recipients, weights, address(token));
+        uint256 depositAmount = 100e6;
+        token.mint(address(this), depositAmount);
+        token.transfer(address(splitter), depositAmount);
+
+        splitter.distribute();
+        assertEq(token.balanceOf(address(splitter)), 0);
+        assertGt(token.balanceOf(provider), 0);
+        assertGt(token.balanceOf(consumer), 0);
     }
 }

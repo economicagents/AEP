@@ -46,4 +46,17 @@ contract BudgetPolicyInvariantTest is Test {
         assertLe(policy.spentDaily(), MAX_DAILY, "spentDaily exceeds maxDaily");
         assertLe(policy.spentWeekly(), MAX_WEEKLY, "spentWeekly exceeds maxWeekly");
     }
+
+    function testFuzz_SpentDailyNeverExceedsCapAfterRecordSpend(uint256 amount1, uint256 amount2) public {
+        amount1 = bound(amount1, 0, MAX_PER_TX);
+        amount2 = bound(amount2, 0, MAX_PER_TX);
+        vm.assume(amount1 + amount2 <= MAX_DAILY);
+
+        vm.prank(account);
+        policy.recordSpend(_makeRecordSpendCalldata(amount1));
+        vm.prank(account);
+        policy.recordSpend(_makeRecordSpendCalldata(amount2));
+
+        assertLe(policy.spentDaily(), MAX_DAILY);
+    }
 }

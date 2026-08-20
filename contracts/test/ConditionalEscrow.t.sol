@@ -315,4 +315,55 @@ contract ConditionalEscrowTest is Test {
         assertEq(uint256(milestoneEscrow.state()), 3); // RELEASED
         assertEq(token.balanceOf(provider), 500e6);
     }
+
+    function test_SubmitMilestoneAlreadySubmittedReverts() public {
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = AMOUNT;
+        ConditionalEscrow milestoneEscrow = new ConditionalEscrow(
+            consumer, provider, PROVIDER_AGENT_ID, address(token), address(validationRegistry), validator, 80, amounts
+        );
+
+        vm.startPrank(consumer);
+        token.approve(address(milestoneEscrow), AMOUNT);
+        milestoneEscrow.fund(AMOUNT);
+        vm.stopPrank();
+
+        vm.prank(provider);
+        milestoneEscrow.acknowledge();
+
+        validationRegistry.setValidation(REQUEST_HASH, validator, PROVIDER_AGENT_ID, 90);
+        vm.startPrank(provider);
+        milestoneEscrow.submitForValidation(REQUEST_HASH, 0);
+        vm.expectRevert(ConditionalEscrow.ConditionalEscrowWrongState.selector);
+        milestoneEscrow.submitForValidation(REQUEST_HASH, 0);
+        vm.stopPrank();
+    }
+
+    function test_FundRevertsWrongMilestoneTotal() public {
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 200e6;
+        amounts[1] = 300e6;
+        ConditionalEscrow milestoneEscrow = new ConditionalEscrow(
+            consumer, provider, PROVIDER_AGENT_ID, address(token), address(validationRegistry), validator, 80, amounts
+        );
+
+        vm.startPrank(consumer);
+        token.approve(address(milestoneEscrow), 400e6);
+        vm.expectRevert(ConditionalEscrow.ConditionalEscrowWrongState.selector);
+        milestoneEscrow.fund(400e6);
+        vm.stopPrank();
+    }
+
+    function test_FundedAcknowledgeRequiredBeforeSubmit() public {
+        vm.startPrank(consumer);
+        token.approve(address(escrow), AMOUNT);
+        escrow.fund(AMOUNT);
+        vm.stopPrank();
+
+        assertEq(uint256(escrow.state()), 0);
+
+        vm.prank(provider);
+        escrow.acknowledge();
+        assertEq(uint256(escrow.state()), 1);
+    }
 }
