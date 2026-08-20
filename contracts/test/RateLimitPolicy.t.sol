@@ -164,4 +164,16 @@ contract RateLimitPolicyTest is Test {
             assertEq(policy.check(_makeUserOp()), 0);
         }
     }
+
+    function test_ConstructorOnlyNoInitialize() public {
+        RateLimitPolicy fresh = new RateLimitPolicy(account, owner);
+        assertEq(fresh.maxTxPerWindow(), 0);
+        assertEq(fresh.windowSeconds(), 0);
+    }
+
+    function test_SetLimitsZeroWindowWithCapRevertsAtConstructionDefaults() public {
+        vm.prank(owner);
+        vm.expectRevert(RateLimitPolicy.RateLimitPolicyInvalidWindow.selector);
+        policy.setLimits(10, 0);
+    }
 }

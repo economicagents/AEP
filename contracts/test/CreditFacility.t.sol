@@ -253,4 +253,34 @@ contract CreditFacilityTest is Test {
         vm.expectRevert(CreditFacility.CreditFacilityDefaulted.selector);
         facility.draw(100e6);
     }
+
+    function test_DeclareDefaultRevertsZeroDrawn() public {
+        vm.startPrank(lender);
+        token.approve(address(facility), 500e6);
+        facility.deposit(500e6);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 31 days);
+        vm.prank(lender);
+        vm.expectRevert(CreditFacility.CreditFacilityExceedsLimit.selector);
+        facility.declareDefault();
+    }
+
+    function test_GetStateReturnsExpectedFields() public {
+        vm.startPrank(lender);
+        token.approve(address(facility), 500e6);
+        facility.deposit(500e6);
+        vm.stopPrank();
+
+        vm.prank(borrower);
+        facility.draw(200e6);
+
+        (uint256 limitAmount, uint256 drawnAmount, uint256 balance, bool frozenState, bool defaulted,) =
+            facility.getState();
+        assertEq(limitAmount, LIMIT);
+        assertEq(drawnAmount, 200e6);
+        assertEq(balance, 300e6);
+        assertFalse(frozenState);
+        assertFalse(defaulted);
+    }
 }
